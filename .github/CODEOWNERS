@@ -1,0 +1,6 @@
+# Replace with real GitHub handles or teams.
+*                           @your-team-lead
+/.github/                   @your-devops-owner
+/docs/03-SECURITY-PRIVACY.md @your-security-owner
+/src/HerProof.Domain/       @your-team-lead
+/electron-app/              @your-electron-owner

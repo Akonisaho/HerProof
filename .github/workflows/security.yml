@@ -1,0 +1,114 @@
+name: Security and compliance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Organisation-owned repos may need GITLEAKS_LICENSE. Personal repos do not.
+
+  dependency-review:
+    name: Dependency and license review (PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Unlicense, CC0-1.0, BlueOak-1.0.0, PostgreSQL, MS-PL, Zlib, Python-2.0
+      # Requires the dependency graph. Private repos need GitHub Advanced Security for this action.
+
+  license-nuget:
+    name: License scan (NuGet)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore HerProof.sln
+      - name: Check licenses against allow-list
+        run: |
+          dotnet tool install --global nuget-license
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          nuget-license -i HerProof.sln -t -a licenses/allowed-licenses.json
+        # Flags can differ by tool version. Run "nuget-license --help" locally once and adjust.
+
+  license-npm:
+    name: License scan (npm, production deps)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: electron-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: electron-app/.nvmrc
+          cache: npm
+          cache-dependency-path: electron-app/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Check licenses against allow-list
+        run: >
+          npx --yes license-checker-rseidelsohn --production --excludePrivatePackages
+          --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;Unlicense;CC0-1.0;BlueOak-1.0.0;Python-2.0;Zlib"
+
+  trivy-fs:
+    name: Vulnerabilities, secrets, misconfig (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          artifact-name: herproof-sbom.cdx.json
+
+  security-gate:
+    name: Security gate
+    if: always()
+    needs: [secrets, license-nuget, license-npm, trivy-fs, sbom]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for r in "${{ needs.secrets.result }}" "${{ needs.license-nuget.result }}" "${{ needs.license-npm.result }}" "${{ needs.trivy-fs.result }}" "${{ needs.sbom.result }}"; do
+            if [ "$r" != "success" ]; then echo "A security job failed: $r"; exit 1; fi
+          done

@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY global.json HerProof.sln ./
+COPY src/ src/
+RUN dotnet restore src/HerProof.AssessmentWorker/HerProof.AssessmentWorker.csproj
+RUN dotnet publish src/HerProof.AssessmentWorker/HerProof.AssessmentWorker.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app .
+ENV DOTNET_EnableDiagnostics=0
+USER $APP_UID
+ENTRYPOINT ["dotnet", "HerProof.AssessmentWorker.dll"]

@@ -1,0 +1,13 @@
+# Build-and-test runner for UNTRUSTED candidate code.
+# Run ONLY with the flags in docs/03 section 5, for example:
+#   docker run --rm --network none --read-only --tmpfs /work:rw,size=512m,exec \
+#     --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 \
+#     --memory 1g --cpus 1 --user 10001:10001 -v <readonly-input>:/input:ro herproof-sandbox
+# Prefer a separate host. The platform must never mount the Docker socket into any container.
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+RUN useradd -u 10001 -m runner
+WORKDIR /work
+COPY --chmod=0555 docker/sandbox-entrypoint.sh /usr/local/bin/sandbox-entrypoint.sh
+USER 10001:10001
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 DOTNET_CLI_HOME=/work/.dotnet NUGET_PACKAGES=/work/.nuget
+ENTRYPOINT ["/usr/local/bin/sandbox-entrypoint.sh"]

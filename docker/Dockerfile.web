@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+# Adjust the SDK/runtime tag to the version pinned in global.json.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY global.json HerProof.sln ./
+COPY src/ src/
+RUN dotnet restore src/HerProof.Web/HerProof.Web.csproj
+RUN dotnet publish src/HerProof.Web/HerProof.Web.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app .
+ENV ASPNETCORE_URLS=http://+:8080 \
+    DOTNET_EnableDiagnostics=0
+EXPOSE 8080
+USER $APP_UID
+ENTRYPOINT ["dotnet", "HerProof.Web.dll"]
