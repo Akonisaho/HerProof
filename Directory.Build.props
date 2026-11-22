@@ -1,0 +1,18 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Minimum</AnalysisMode>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- CA1014: CLSCompliant not relevant. CA1848/CA1727/CA1305: LoggerMessage delegates and
+         locale-explicit console formatting are production-grade rigor with poor ROI for a hackathon week;
+         revisit before a real release. -->
+    <NoWarn>CA1014;CA1848;CA1727;CA1305</NoWarn>
+  </PropertyGroup>
+
+</Project>

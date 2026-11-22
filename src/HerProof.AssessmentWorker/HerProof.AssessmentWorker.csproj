@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <UserSecretsId>dotnet-HerProof.AssessmentWorker-19104875-bd48-4c01-abea-86cc781f25b5</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HerProof.Application\HerProof.Application.csproj" />
+    <ProjectReference Include="..\HerProof.Infrastructure\HerProof.Infrastructure.csproj" />
+    <ProjectReference Include="..\HerProof.AI\HerProof.AI.csproj" />
+  </ItemGroup>
+</Project>

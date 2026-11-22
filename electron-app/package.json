@@ -1,0 +1,27 @@
+{
+  "name": "herproof-electron",
+  "version": "0.0.1",
+  "private": true,
+  "description": "HerProof Electron Assessment Agent — practical assessments and integrity events.",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsc -p tsconfig.json && electron .",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "dist": "echo \"STUB(HP-012): packaging via electron-builder not implemented yet\" && exit 0"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@typescript-eslint/eslint-plugin": "^7.16.0",
+    "@typescript-eslint/parser": "^7.16.0",
+    "electron": "^31.2.1",
+    "eslint": "^8.57.0",
+    "typescript": "^5.5.3",
+    "vitest": "^1.6.0"
+  }
+}

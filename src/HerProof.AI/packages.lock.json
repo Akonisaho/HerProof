@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "herproof.application": {
+        "type": "Project",
+        "dependencies": {
+          "HerProof.Domain": "[1.0.0, )"
+        }
+      },
+      "herproof.domain": {
+        "type": "Project"
+      }
+    }
+  }
+}
