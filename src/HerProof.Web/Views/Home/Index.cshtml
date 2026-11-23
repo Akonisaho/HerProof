@@ -1,8 +1,204 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "HerProof — Her code, her proof, her career";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="hero-wrap">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-7">
+                <span class="hero-eyebrow">Verified software skills, human-approved</span>
+                <h1>Her code. Her <em>proof</em>. Her career.</h1>
+                <p class="lead">
+                    A self-taught developer submits her own GitHub repository. HerProof grounds a live
+                    interview in her actual code, runs it in a sandbox, and has a qualified assessor
+                    verify exactly what she can do — C#, APIs, testing, the real stack employers hire
+                    for. No bootcamp certificate, no multiple-choice quiz. Just her code, her words, and
+                    a human who signs off.
+                </p>
+                <div class="d-flex flex-wrap gap-3 mt-4">
+                    <a asp-controller="Opportunities" asp-action="Index" class="btn-brand">Browse opportunities</a>
+                    <a href="#how-it-works" class="btn-brand-outline">See how verification works</a>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    <span class="guardrail-badge">✓ Human verification required</span>
+                    <span class="guardrail-badge">✓ No biometric or accent scoring</span>
+                    <span class="guardrail-badge">✓ POPIA-aware by design</span>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="dev-mockup">
+                    <div class="code-panel">
+                        <div class="code-panel-chrome">
+                            <span class="mockup-dot"></span>
+                            <span class="mockup-dot"></span>
+                            <span class="mockup-dot"></span>
+                            <span class="code-panel-filename">TaskService.cs</span>
+                        </div>
+                        <div class="code-panel-body">
+                            <div class="code-line"><span class="tok-kw">public class</span> <span class="tok-type">TaskService</span> : <span class="tok-type">ITaskService</span></div>
+                            <div class="code-line">{</div>
+                            <div class="code-line">&#8201;&#8201;<span class="tok-kw">public async</span> <span class="tok-type">Task</span>&lt;<span class="tok-type">TaskItem</span>&gt; <span class="tok-fn">CreateAsync</span>(<span class="tok-type">string</span> title)</div>
+                            <div class="code-line">&#8201;&#8201;{</div>
+                            <div class="code-line">&#8201;&#8201;&#8201;&#8201;<span class="tok-com">// Thandi: "Walk me through what happens here"</span></div>
+                            <div class="code-line">&#8201;&#8201;}</div>
+                            <div class="code-line">}</div>
+                        </div>
+                    </div>
+                    <div class="skill-card">
+                        <div class="skill-card-head">
+                            <div>
+                                <span class="skill-card-title">Skills Passport</span>
+                                <div class="skill-card-id">HP-2026-F08C1741 &middot; Software Developer</div>
+                            </div>
+                            <span class="mockup-badge">✓ Verified</span>
+                        </div>
+                        <div class="skill-row">
+                            <span class="skill-name"><span class="skill-check">✓</span> C#</span>
+                            <span class="skill-level">Verified &middot; L3</span>
+                        </div>
+                        <div class="skill-row">
+                            <span class="skill-name"><span class="skill-check">✓</span> ASP.NET Core</span>
+                            <span class="skill-level">Verified &middot; L2</span>
+                        </div>
+                        <div class="skill-row">
+                            <span class="skill-name"><span class="skill-check">✓</span> API development</span>
+                            <span class="skill-level">Verified &middot; L2</span>
+                        </div>
+                        <div class="skill-row">
+                            <span class="skill-name"><span class="skill-check">✓</span> Testing</span>
+                            <span class="skill-level">Verified &middot; L2</span>
+                        </div>
+                        <div class="skill-row">
+                            <span class="skill-name"><span class="skill-check">✓</span> Git</span>
+                            <span class="skill-level">Verified &middot; L3</span>
+                        </div>
+                        <div class="skill-card-footer">
+                            <div>
+                                <span class="d-block fw-bold">Scan to open HerProof</span>
+                                <span class="text-muted text-sm">This is a real, working QR code</span>
+                            </div>
+                            <img src="@Url.Action("BrandQr", "Home")" width="64" height="64" alt="QR code linking to HerProof" class="mockup-qr-img" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<section id="how-it-works" class="brand-section">
+    <div class="text-center mb-5">
+        <span class="section-eyebrow">How it works</span>
+        <h2 class="mt-2">From opportunity to verified proof</h2>
+        <p class="text-muted">Four steps. One human decision at the end. Nothing is ever assumed.</p>
+    </div>
+    <div class="row g-4 journey-row">
+        <div class="col-md-3 journey-step">
+            <div class="step-number">1</div>
+            <h3>Define the opportunity</h3>
+            <p>An employer or bursary funder sets the real competencies and levels the role needs.</p>
+        </div>
+        <div class="col-md-3 journey-step">
+            <div class="step-number">2</div>
+            <h3>See the real gap</h3>
+            <p>Demonstrated, not yet assessed, or not demonstrated — missing evidence is never scored as a zero.</p>
+        </div>
+        <div class="col-md-3 journey-step">
+            <div class="step-number">3</div>
+            <h3>Prove it, twice over</h3>
+            <p>Her own code, reviewed, then a live conversation about it — two independent signals, not a quiz.</p>
+        </div>
+        <div class="col-md-3 journey-step">
+            <div class="step-number">4</div>
+            <h3>A human verifies</h3>
+            <p>A qualified assessor reviews the evidence and makes the call. AI recommends — it never decides.</p>
+        </div>
+    </div>
+</section>
+
+<section class="brand-section-muted">
+    <div class="row align-items-center g-4">
+        <div class="col-lg-7">
+            <span class="section-eyebrow">Why it's trustworthy</span>
+            <h2 class="mt-2">What employers and funders are actually buying</h2>
+            <p class="text-muted mb-0">
+                A verified competency on HerProof means a real assessor looked at real evidence —
+                not a self-reported skill, not a multiple-choice score, not an AI guess.
+            </p>
+        </div>
+        <div class="col-lg-5 text-lg-end">
+            <a asp-controller="Home" asp-action="Privacy" class="btn-brand-outline">Read our data &amp; privacy principles</a>
+        </div>
+    </div>
+</section>
+
+<section class="brand-section">
+    <div class="row g-4">
+        <div class="col-md-7">
+            <div class="brand-card brand-card-feature">
+                <div class="card-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>
+                </div>
+                <h3>Evidence before verification</h3>
+                <p>No code path — AI, a score threshold, or an automated job — can ever mark a competency Verified. Only an authorised human assessor can, and every decision is permanently recorded, never silently edited.</p>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="brand-card">
+                <div class="card-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0" /><path d="M12 18l3-5" /><circle cx="12" cy="18" r="1" /></svg>
+                </div>
+                <h3>Never a zero</h3>
+                <p>Missing evidence is labelled "not yet assessed," distinct from "assessed and not demonstrated." A skill gap is never mistaken for failure.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="brand-card">
+                <div class="card-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="12" height="9" rx="2" /><rect x="9" y="11" width="12" height="9" rx="2" /></svg>
+                </div>
+                <h3>Two independent proofs</h3>
+                <p>Real repository code grounds a live conversation about it — every question cites an actual line in her own work.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="brand-card">
+                <div class="card-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+                </div>
+                <h3>Transparent, never punitive</h3>
+                <p>During a timed practical, the candidate sees the exact same integrity log an assessor does. Flags for review, never automatic penalties.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="brand-card">
+                <div class="card-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18" /><path d="M5 7l-3 6a3 3 0 0 0 6 0l-3-6z" /><path d="M19 7l-3 6a3 3 0 0 0 6 0l-3-6z" /><path d="M5 7h14" /></svg>
+                </div>
+                <h3>Fair by design</h3>
+                <p>Only the content of an answer is ever assessed — never accent, pronunciation, appearance or fluency.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="brand-section">
+    <div class="cta-band">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <span class="section-eyebrow section-eyebrow-on-dark">For engineering teams &amp; bursary providers</span>
+                <h2 class="mt-2">Hire from real code, not a CV</h2>
+                <p class="mb-0">
+                    Define the stack and the level a role actually needs. See candidates whose C# and
+                    API skills have already been reviewed in their own repository, explained live, and
+                    signed off by a qualified human assessor — before you ever schedule an interview.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <a asp-controller="Partner" asp-action="Index" class="btn-brand">Partner with us</a>
+            </div>
+        </div>
+    </div>
+</section>

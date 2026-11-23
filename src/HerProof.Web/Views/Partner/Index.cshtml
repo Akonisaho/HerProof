@@ -1,0 +1,43 @@
+@model HerProof.Web.Models.Partnerships.PartnerInquiryViewModel
+@{
+    ViewData["Title"] = "Partner with us";
+}
+
+<h1>Partner with HerProof</h1>
+<p class="text-muted">
+    Hiring teams and bursary providers: tell us a bit about what you're looking for and we'll be in touch.
+</p>
+
+<form asp-controller="Partner" asp-action="Submit" method="post" class="mb-5" style="max-width: 560px;">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="OrganisationName" class="form-label"></label>
+        <input asp-for="OrganisationName" class="form-control" />
+        <span asp-validation-for="OrganisationName" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="ContactName" class="form-label"></label>
+        <input asp-for="ContactName" class="form-control" />
+        <span asp-validation-for="ContactName" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="ContactEmail" class="form-label"></label>
+        <input asp-for="ContactEmail" class="form-control" />
+        <span asp-validation-for="ContactEmail" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Phone" class="form-label"></label>
+        <input asp-for="Phone" class="form-control" />
+        <span asp-validation-for="Phone" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="InquiryType" class="form-label"></label>
+        <select asp-for="InquiryType" asp-items="Html.GetEnumSelectList<HerProof.Domain.Partnerships.PartnershipInquiryType>()" class="form-select"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Message" class="form-label"></label>
+        <textarea asp-for="Message" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="Message" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn-brand">Send inquiry</button>
+</form>

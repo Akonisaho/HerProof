@@ -1,0 +1,25 @@
+@model IReadOnlyList<HerProof.Domain.Opportunities.Opportunity>
+@{
+    ViewData["Title"] = "Your opportunities";
+    var organisationId = (Guid)ViewBag.OrganisationId;
+}
+
+<h1>Your opportunities</h1>
+<p><a asp-action="Create" asp-route-organisationId="@organisationId" class="btn btn-primary">Post a new opportunity</a></p>
+
+<table class="table">
+    <thead>
+        <tr><th>Title</th><th>Type</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+        @foreach (var opportunity in Model)
+        {
+            <tr>
+                <td>@opportunity.Title</td>
+                <td>@opportunity.OpportunityType</td>
+                <td>@opportunity.Status</td>
+                <td><a asp-action="Details" asp-route-organisationId="@organisationId" asp-route-opportunityId="@opportunity.Id">Manage</a></td>
+            </tr>
+        }
+    </tbody>
+</table>

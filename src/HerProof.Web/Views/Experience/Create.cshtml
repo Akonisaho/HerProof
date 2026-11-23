@@ -1,0 +1,33 @@
+@model HerProof.Web.Models.Experience.CreateExperienceRecordViewModel
+@{
+    ViewData["Title"] = "Add experience";
+}
+
+<h1>Add experience</h1>
+<p>Caregiving, household and community work counts. Tell us about it in your own words — we'll suggest
+   competencies it might map to, which you can confirm or reject. Suggestions are never awards.</p>
+
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Category" class="form-label"></label>
+        <select asp-for="Category" asp-items="Html.GetEnumSelectList<HerProof.Domain.Experience.ExperienceCategory>()" class="form-select"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+    </div>
+    <div class="mb-3">
+        <label asp-for="StartDate" class="form-label"></label>
+        <input asp-for="StartDate" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="EndDate" class="form-label"></label>
+        <input asp-for="EndDate" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary">Add</button>
+</form>

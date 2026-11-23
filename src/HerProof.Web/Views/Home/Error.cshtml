@@ -1,0 +1,16 @@
+@model HerProof.Web.Models.ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<h1 class="text-danger">An error occurred while processing your request.</h1>
+
+@if (Model.ShowRequestId)
+{
+    <p>
+        <strong>Request ID:</strong> <code>@Model.RequestId</code>
+    </p>
+}
+
+<p>Nothing was lost — if you were partway through a form, please go back and try again. If this
+   keeps happening, quote the request ID above when you report it.</p>

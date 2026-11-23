@@ -109,18 +109,37 @@ Public verify page may show: credential identifier, issuing organisation, compet
 Share links use random tokens (at least 128 bits), stored hashed, revocable, optionally expiring.
 
 ## 12. Security testing checklist (automate where possible)
-- [ ] Anonymous and wrong-role access to every endpoint returns 401 or 403.
-- [ ] Object-level authorisation (IDOR) tests on every resource id.
-- [ ] Mass assignment: DTOs only, no binding to entities.
-- [ ] CSRF protection on forms, CORS locked down.
-- [ ] Security headers: CSP, HSTS, X-Content-Type-Options, Referrer-Policy, frame-ancestors none.
-- [ ] Rate limiting on auth, upload, analysis and interview endpoints.
-- [ ] File upload validation: type, size, content sniffing, storage outside web root, malware scan if possible.
-- [ ] Public passport page leaks nothing outside the allow-list.
-- [ ] Prompt injection test repo in the test suite (README and code comments containing instructions) and the result is unaffected.
-- [ ] Malicious repo test (fork bomb, huge file, network call) is contained by the sandbox.
-- [ ] Secrets scan clean, no secrets in logs.
-- [ ] Electron: contextIsolation on, nodeIntegration off, sandbox on, navigation and window.open blocked, IPC allow-list tested.
+- [x] Anonymous and wrong-role access to every endpoint returns 401 or 403 (AuthorizationMatrixTests, IdorTests).
+- [x] Object-level authorisation (IDOR) tests on every resource id added through P16 (IdorTests covers assessor dashboard, evidence pack, organisation applications; CandidateProfileController already covered).
+- [x] Mass assignment: DTOs only, no binding to entities (ViewModel/DTO pattern used throughout, confirmed by code review in P17).
+- [x] CSRF protection on forms, CORS locked down (`AutoValidateAntiforgeryTokenAttribute` global since P03; no CORS policy registered at all, so cross-origin requests are rejected by default).
+- [x] Security headers: CSP, HSTS, X-Content-Type-Options, Referrer-Policy, frame-ancestors none (Program.cs, since P03/P17).
+- [x] Rate limiting on auth, upload, analysis and interview endpoints (P17: named policies `auth`/`upload`/`analysis`/`interview`, on top of the global per-IP limiter; verified live — the 11th login request in a minute returns 429).
+- [ ] File upload validation: type, size, content sniffing, storage outside web root, malware scan if possible. **Not applicable yet, not skipped**: there is no `IFormFile` upload endpoint in the app — repository submission takes a GitHub URL, and assessment submission takes plain text (HP-028), which P17 gave a size limit (200,000 chars). Revisit this item for real when HP-028's zipped multi-file workspace lands.
+- [x] Public passport page leaks nothing outside the allow-list (P15: PassportVerificationController never queries recordings/transcripts/repos/contact/integrity/scores at all).
+- [x] Prompt injection test repo in the test suite and the result is unaffected (P08/P10: RepositoryAnalysisPromptBuilder/InterviewPromptBuilder delimiter-neutralise untrusted content, FindingVerification/SnippetReferenceVerifier discard any claim that doesn't match the real fetched snapshot).
+- [x] Malicious repo test (fork bomb, huge file, network call) is contained by the sandbox (P09: SandboxMaliciousFixtureTests, including a real exponential fork bomb and the CappedBuffer fix for unbounded output).
+- [ ] Secrets scan clean, no secrets in logs. SecretRedactor (P07/P08) is real and tested, but no CI-wired repo-wide secrets scanner (e.g. gitleaks) has been added — see docs/SECURITY-EXCEPTIONS.md.
+- [ ] Electron: contextIsolation on, nodeIntegration off, sandbox on, navigation and window.open blocked, IPC allow-list tested — already true in code (P12) and covered by the 23 passing electron-app unit tests, but not re-verified in P17 since this environment cannot launch a real Electron window (HP-024/025/026).
+
+Items not yet checked above, plus everything deferred rather than fixed, are tracked in docs/SECURITY-EXCEPTIONS.md (P17).
 
 ## 13. Incident response (one page)
 Detect (alerts, user report) -> Contain (revoke tokens, disable sharing, isolate sandbox) -> Assess (what data, which users) -> Notify (information regulator and affected people as required by POPIA, with legal guidance) -> Fix -> Post-incident review and update this document.
+
+## 14. P17 threat-model delta
+What changed since the last pass through this document (P02-P16), and why it changes the risk picture:
+- **New attack surface**: Skills Passport public verify pages (P15) and bursary applications attaching
+  credentials (P16) both take anonymous or candidate-supplied input that resolves to other people's
+  data. Mitigated the same way as everywhere else in this codebase: a single construction/resolution
+  site per sensitive operation (`PassportShareService.Resolve`, `AppliedCredentialSelector.Select`),
+  with an allow-list, not a denylist.
+- **New account-lifecycle surface**: `DataSubjectController` (P17) is a brand-new way for an
+  authenticated user to change her own identity data and sign herself out permanently. It's scoped to
+  `[Authorize]` with no admin variant, and reuses the existing `UpdateProfile`/`UserManager` methods
+  rather than raw SQL, so it can't touch anyone else's account and can't bypass append-only history.
+- **New sanctioned exception to append-only**: the transcript retention job (P17) is the first place in
+  the codebase that deliberately writes to an `IAppendOnly` table outside EF's SaveChanges path (raw
+  SQL, see `TranscriptRetentionBackgroundService`'s own comment for the reasoning). This is a conscious,
+  narrow exception — it only ever replaces transcript text with a fixed placeholder, on a schedule, and
+  logs an audit entry — not a precedent for bypassing the guard elsewhere.

@@ -1,0 +1,128 @@
+@model HerProof.Web.Models.Verification.EvidencePackViewModel
+@using HerProof.Application.Verification
+@using HerProof.Domain.Repositories
+@{
+    ViewData["Title"] = "Evidence pack";
+    var candidateId = (Guid)ViewBag.CandidateId;
+    var competencyId = (Guid)ViewBag.CompetencyId;
+    var contributorStatuses = ViewBag.RepositoryContributorStatuses as List<ContributorVerificationStatus> ?? [];
+
+    static string SuggestionBadge(AiSuggestion s) => s switch
+    {
+        AiSuggestion.Verified => "badge bg-success",
+        AiSuggestion.Developing => "badge bg-warning text-dark",
+        AiSuggestion.NotDemonstrated => "badge bg-secondary",
+        _ => "badge bg-light text-dark border",
+    };
+
+    static (string Class, string Label) ContributorBadge(ContributorVerificationStatus status) => status switch
+    {
+        ContributorVerificationStatus.Confirmed => ("badge bg-success", "✓ Contributor confirmed"),
+        ContributorVerificationStatus.NotConfirmed => ("badge bg-warning text-dark", "Contributor not confirmed"),
+        _ => ("badge bg-light text-dark border", "Contributor not checked"),
+    };
+}
+
+@if ((bool?)ViewBag.IsDemoData == true)
+{
+    <div class="alert alert-info">Demo data — some evidence here is a pre-seeded fallback, not freshly
+        computed.</div>
+}
+
+<h1>@Model.CandidateName — @Model.CompetencyName</h1>
+<p>Declared level: @(Model.DeclaredLevel?.ToString() ?? "not declared") &middot;
+   Verified level: @(Model.VerifiedLevel?.ToString() ?? "not yet assessed") &middot;
+   Status: <strong>@Model.CandidateCompetencyStatus</strong></p>
+
+<div class="alert alert-info">
+    <strong>AI suggestion (not a decision):</strong>
+    <span class="@SuggestionBadge(Model.AiSuggestion)">@Model.AiSuggestion</span>
+    — derived from repository evidence and interview verdicts only. An assessor makes the actual call below.
+</div>
+
+@if (contributorStatuses.Count > 0)
+{
+    <p>
+        Repository contributor check:
+        @foreach (var status in contributorStatuses)
+        {
+            var (badgeClass, label) = ContributorBadge(status);
+            <span class="@badgeClass">@label</span>
+        }
+    </p>
+}
+
+<h2 class="h5">Repository findings</h2>
+<ul>
+    @foreach (var f in Model.RepositoryFindings)
+    {
+        <li>@f.FilePath:@f.LineReference — @f.Description (@f.Confidence confidence)</li>
+    }
+</ul>
+
+<h2 class="h5">Execution (sandbox)</h2>
+<ul>
+    @foreach (var e in Model.ExecutionReports)
+    {
+        <li>Restore: @e.RestoreOk, Build: @e.BuildOk, Tests passed: @e.TestsPassed, failed: @e.TestsFailed — @e.LogExcerpt</li>
+    }
+</ul>
+
+<h2 class="h5">Interview (Thandi) — code beside answer</h2>
+@foreach (var (question, turn) in Model.InterviewTurns)
+{
+    <div class="card mb-2">
+        <div class="card-body">
+            <p><strong>@question.QuestionText</strong> (<code>@question.SnippetFilePath</code>:@question.SnippetLines)</p>
+            <div class="row">
+                <div class="col-md-6"><strong>Candidate's answer</strong><p class="small">@turn.TranscriptConfirmed</p></div>
+                <div class="col-md-6"><strong>Verdict</strong><p class="small">@turn.Evaluation!.Verdict — @turn.Evaluation.EvidenceSummary</p></div>
+            </div>
+        </div>
+    </div>
+}
+
+<h2 class="h5">Practical assessment reviews</h2>
+<ul>
+    @foreach (var r in Model.AssessmentReviews)
+    {
+        <li>@r.ReviewStatus — @r.Feedback</li>
+    }
+</ul>
+
+<h2 class="h5">Integrity timeline</h2>
+<ul>
+    @foreach (var e in Model.IntegrityTimeline)
+    {
+        <li>@e.OccurredAtUtc.ToString("u") — @e.EventType</li>
+    }
+</ul>
+
+<h2 class="h5">Decision history (append-only)</h2>
+<ul>
+    @foreach (var v in Model.DecisionHistory)
+    {
+        <li>@v.CreatedAtUtc.ToString("u") — @v.Decision @(v.FinalLevel is not null ? $"(level {v.FinalLevel})" : "") — @v.EvidenceSummary</li>
+    }
+</ul>
+
+<h2 class="h5">Your decision</h2>
+<form asp-action="Decide" asp-route-candidateId="@candidateId" asp-route-competencyId="@competencyId" method="post">
+    <div class="mb-3">
+        <label class="form-label">Decision</label>
+        <select name="Decision" class="form-select">
+            <option value="Verified">Approve (Verified)</option>
+            <option value="Developing">Recommend development</option>
+            <option value="NotDemonstrated">Not demonstrated</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Final level (only if Verified)</label>
+        <input type="number" name="FinalLevel" min="0" max="4" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Feedback</label>
+        <textarea name="Feedback" class="form-control"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit decision</button>
+</form>

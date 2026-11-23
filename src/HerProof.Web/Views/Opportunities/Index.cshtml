@@ -1,0 +1,15 @@
+@model IReadOnlyList<HerProof.Domain.Opportunities.Opportunity>
+@{
+    ViewData["Title"] = "Opportunities";
+}
+
+<h1>Opportunities</h1>
+<ul class="list-group">
+    @foreach (var opportunity in Model)
+    {
+        <li class="list-group-item">
+            <a asp-action="Details" asp-route-opportunityId="@opportunity.Id">@opportunity.Title</a>
+            — @opportunity.OpportunityType @(string.IsNullOrEmpty(opportunity.Location) ? "" : $"· {opportunity.Location}")
+        </li>
+    }
+</ul>

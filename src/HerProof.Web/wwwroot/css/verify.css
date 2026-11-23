@@ -1,0 +1,116 @@
+/* Standalone public verify page — no shared _Layout, so its own small stylesheet. */
+:root {
+  --v-pink: #c2186b;
+  --v-pink-soft: #fdf0f6;
+  --v-pink-border: #f3d2e4;
+  --v-ink: #15121a;
+  --v-ink-muted: #675d62;
+  --v-success: #2f7a4d;
+  --v-success-soft: #eaf5ee;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  color: var(--v-ink);
+  background: var(--v-pink-soft);
+  margin: 0;
+  padding: 2.5rem 1.25rem;
+}
+
+.verify-card {
+  max-width: 34rem;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--v-pink-border);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(61, 7, 31, 0.1);
+  overflow: hidden;
+}
+
+.verify-header {
+  padding: 1.75rem 2rem 1.25rem;
+  border-bottom: 1px solid var(--v-pink-border);
+}
+
+.verify-wordmark {
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+
+.verify-wordmark span {
+  color: var(--v-pink);
+}
+
+.verify-note {
+  color: var(--v-ink-muted);
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0;
+}
+
+.verify-body {
+  padding: 1.75rem 2rem 2rem;
+}
+
+.verify-candidate h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+}
+
+.verify-passport-number {
+  color: var(--v-ink-muted);
+  font-size: 0.9rem;
+}
+
+.verify-section-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--v-pink);
+  margin: 1.75rem 0 0.75rem;
+}
+
+.verify-credential {
+  border: 1px solid var(--v-pink-border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 0.9rem;
+}
+
+.verify-credential-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.verify-credential-name {
+  font-weight: 700;
+}
+
+.verify-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--v-success-soft);
+  color: var(--v-success);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.verify-credential-meta {
+  color: var(--v-ink-muted);
+  font-size: 0.85rem;
+  margin-top: 0.4rem;
+}
+
+.verify-footer {
+  background: var(--v-pink-soft);
+  padding: 1rem 2rem;
+  color: var(--v-ink-muted);
+  font-size: 0.8rem;
+}

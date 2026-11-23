@@ -1,0 +1,29 @@
+@model HerProof.Web.Models.Interviews.VoiceConsentViewModel
+@{
+    ViewData["Title"] = "Voice interview consent";
+}
+
+<h1>Before you start</h1>
+<p>Thandi can ask her questions out loud and let you answer by speaking, instead of typing.</p>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h2 class="h6">If you say yes to voice</h2>
+        <ul>
+            <li>Your microphone is used only while you're recording an answer — never in the background.</li>
+            <li>Your words are turned into text <strong>by your own browser</strong> — the audio never leaves your device or touches a HerProof server at all.</li>
+            <li>You always see the resulting text and can correct it before it's submitted.</li>
+            <li>This needs a browser that supports it (Chrome or Edge); if yours doesn't, you'll just type instead automatically.</li>
+            <li>Only the content of your words is assessed — never your accent, pronunciation or how you sound.</li>
+            <li>You can switch to typing at any point, with no penalty.</li>
+        </ul>
+        <p>If you say no, the interview continues exactly the same way, just typed instead of spoken.</p>
+    </div>
+</div>
+
+<form asp-action="Consent" method="post">
+    <input type="hidden" asp-for="RepositoryId" />
+    <input type="hidden" asp-for="OpportunityId" />
+    <button type="submit" name="ConsentGiven" value="true" class="btn btn-primary">Yes, enable voice</button>
+    <button type="submit" name="ConsentGiven" value="false" class="btn btn-secondary">No, I'll type my answers</button>
+</form>

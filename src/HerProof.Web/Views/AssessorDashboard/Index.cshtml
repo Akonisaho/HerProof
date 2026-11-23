@@ -1,0 +1,23 @@
+@model IReadOnlyList<HerProof.Domain.Competencies.CandidateCompetency>
+@{
+    ViewData["Title"] = "Assessor dashboard";
+    var candidateNames = (IReadOnlyDictionary<Guid, string>)ViewBag.CandidateNames;
+    var competencyNames = (IReadOnlyDictionary<Guid, string>)ViewBag.CompetencyNames;
+}
+
+<h1>Pending review</h1>
+<table class="table">
+    <thead><tr><th>Candidate</th><th>Competency</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var cc in Model)
+        {
+            <tr>
+                <td>@candidateNames.GetValueOrDefault(cc.CandidateId, "(unknown)")</td>
+                <td>@competencyNames.GetValueOrDefault(cc.CompetencyId, "(unknown)")</td>
+                <td>@cc.Status</td>
+                <td>@cc.UpdatedAtUtc.ToString("u")</td>
+                <td><a asp-action="EvidencePack" asp-route-candidateId="@cc.CandidateId" asp-route-competencyId="@cc.CompetencyId">Review</a></td>
+            </tr>
+        }
+    </tbody>
+</table>

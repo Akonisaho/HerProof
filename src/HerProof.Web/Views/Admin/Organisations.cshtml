@@ -1,0 +1,45 @@
+@model IReadOnlyList<HerProof.Web.Models.Admin.OrganisationRow>
+@{
+    ViewData["Title"] = "Admin — Organisations";
+}
+
+<h1>Organisations</h1>
+<p><a asp-action="Users" class="btn btn-outline-secondary btn-sm">Manage users</a></p>
+
+@if (TempData["AdminError"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+<table class="table">
+    <thead><tr><th>Name</th><th>Members</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var row in Model)
+        {
+            <tr>
+                <td>@row.Name</td>
+                <td>@row.MemberCount</td>
+                <td><a asp-action="OrganisationDetail" asp-route-organisationId="@row.Id">Manage</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2 class="h5 mt-4">Create a new organisation</h2>
+<form asp-action="CreateOrganisation" method="post" class="row g-2 align-items-end">
+    <div class="col-auto">
+        <label class="form-label">Name</label>
+        <input type="text" name="Name" class="form-control" required />
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Industry</label>
+        <input type="text" name="Industry" class="form-control" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Website</label>
+        <input type="text" name="Website" class="form-control" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Create</button>
+    </div>
+</form>

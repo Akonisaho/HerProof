@@ -1,0 +1,21 @@
+@model HerProof.Web.Models.Repositories.SubmitRepositoryViewModel
+@{
+    ViewData["Title"] = "Submit a repository";
+}
+
+<h1>Submit a repository</h1>
+<p>Public GitHub repositories only for now. We pin the exact commit so your analysis and interview are
+   based on precisely what you submitted.</p>
+
+<form asp-action="Submit" method="post">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="RepositoryUrl" class="form-label"></label>
+        <input asp-for="RepositoryUrl" class="form-control" placeholder="https://github.com/owner/repo" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Branch" class="form-label"></label>
+        <input asp-for="Branch" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>

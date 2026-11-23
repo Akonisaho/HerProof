@@ -1,0 +1,16 @@
+@{
+    ViewData["Title"] = "Delete my account";
+}
+
+<h1>Delete my account</h1>
+<p>This removes your identifying information from HerProof. Your email, name and profile details are
+   cleared and your account is deactivated immediately.</p>
+<p>Records that other people rely on — a competency verification, an application review, the audit
+   log — are kept, as they always are for everyone (nothing in HerProof is ever silently edited or
+   erased), but they no longer identify you by name once this completes.</p>
+<p>You'll be signed out and won't be able to use this account again.</p>
+
+<form asp-action="Delete" method="post">
+    <button type="submit" class="btn btn-danger">Yes, delete my account</button>
+    <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

@@ -1,0 +1,54 @@
+@model HerProof.Domain.Interviews.Interview
+@using HerProof.Domain.Interviews
+@{
+    ViewData["Title"] = "Interview result";
+    var competencyNames = (IReadOnlyDictionary<Guid, string>)ViewBag.CompetencyNames;
+
+    static string VerdictBadge(Verdict verdict) => verdict switch
+    {
+        Verdict.Understood => "badge bg-success",
+        Verdict.Partial => "badge bg-warning text-dark",
+        Verdict.NotDemonstrated => "badge bg-secondary",
+        _ => "badge bg-light text-dark",
+    };
+}
+
+<h1>Interview result</h1>
+@if (Model.IsDemoData)
+{
+    <div class="alert alert-info">Demo data — this is a pre-generated interview, shown instantly as a
+        fallback for a live demo, not something you just answered.</div>
+}
+<p>Thandi's recommendation for the assessor — code on one side, your answer on the other.</p>
+
+@foreach (var question in Model.Questions.OrderBy(q => q.QuestionOrder))
+{
+    var finalTurn = question.Turns.OrderBy(t => t.TurnIndex).LastOrDefault(t => t.Evaluation is not null);
+    <div class="card mb-3">
+        <div class="card-body">
+            <h2 class="h5">@competencyNames.GetValueOrDefault(question.CompetencyId, "Unknown") — @question.QuestionText</h2>
+            @if (!string.IsNullOrEmpty(question.SnippetFilePath))
+            {
+                <p class="small text-muted"><code>@question.SnippetFilePath</code> lines @question.SnippetLines</p>
+            }
+
+            @if (finalTurn?.Evaluation is not null)
+            {
+                <span class="@VerdictBadge(finalTurn.Evaluation.Verdict)">@finalTurn.Evaluation.Verdict</span>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <strong>Code</strong>
+                        <pre class="small">@question.SnippetFilePath:@question.SnippetLines</pre>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Your answer</strong>
+                        <p class="small">@finalTurn.TranscriptConfirmed</p>
+                    </div>
+                </div>
+                <p class="small text-muted">@finalTurn.Evaluation.EvidenceSummary</p>
+            }
+        </div>
+    </div>
+}
+
+<p class="text-muted">This is Thandi's recommendation only. A named human assessor makes the final verification decision.</p>

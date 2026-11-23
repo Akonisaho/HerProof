@@ -1,0 +1,92 @@
+@model HerProof.Web.Models.Account.EditProfileViewModel
+@{
+    ViewData["Title"] = "Edit your profile";
+    var candidateProfileId = Guid.Parse(ViewContext.RouteData.Values["candidateProfileId"]!.ToString()!);
+}
+
+<h1>Edit your profile</h1>
+<p class="text-muted">
+    Everything here is optional, and only used for bursary/job eligibility checks and to help gap
+    reports — never for AI scoring of your competency evidence.
+</p>
+
+<form asp-action="Edit" asp-route-candidateProfileId="@candidateProfileId" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label class="form-label">Province</label>
+        <select asp-for="Province" class="form-select">
+            <option value="">Prefer not to say</option>
+            <option>Eastern Cape</option>
+            <option>Free State</option>
+            <option>Gauteng</option>
+            <option>KwaZulu-Natal</option>
+            <option>Limpopo</option>
+            <option>Mpumalanga</option>
+            <option>Northern Cape</option>
+            <option>North West</option>
+            <option>Western Cape</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Education level</label>
+        <select asp-for="EducationLevel" class="form-select">
+            <option value="">Prefer not to say</option>
+            <option>No formal qualification</option>
+            <option>Matric</option>
+            <option>Certificate</option>
+            <option>Diploma</option>
+            <option>Degree</option>
+            <option>Postgraduate</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Gender (bursary eligibility only, never used for AI scoring)</label>
+        <select asp-for="GenderDeclared" class="form-select">
+            <option value="">Prefer not to say</option>
+            <option>Woman</option>
+            <option>Man</option>
+            <option>Non-binary</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Household income band (bursary eligibility only)</label>
+        <select asp-for="HouseholdIncomeBand" class="form-select">
+            <option value="">Prefer not to say</option>
+            <option>Low</option>
+            <option>Medium</option>
+            <option>High</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Field of study</label>
+        <input asp-for="FieldOfStudy" class="form-control" placeholder="e.g. Computer Science, or leave blank" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="DateOfBirth" class="form-label"></label>
+        <input asp-for="DateOfBirth" class="form-control max-w-xs" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Career interests</label>
+        <textarea asp-for="CareerInterests" class="form-control"></textarea>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">GitHub profile</label>
+        <input asp-for="GitHubProfile" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">LinkedIn profile</label>
+        <input asp-for="LinkedInProfile" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a asp-action="Index" asp-route-candidateProfileId="@candidateProfileId" class="btn btn-secondary">Cancel</a>
+</form>

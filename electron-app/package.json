@@ -3,24 +3,29 @@
   "version": "0.0.1",
   "private": true,
   "description": "HerProof Electron Assessment Agent — practical assessments and integrity events.",
-  "main": "dist/main.js",
+  "main": "dist/main/index.js",
   "scripts": {
-    "dev": "tsc -p tsconfig.json && electron .",
-    "build": "tsc -p tsconfig.json",
+    "copy-renderer": "node -e \"require('fs').cpSync('renderer','dist/renderer',{recursive:true})\"",
+    "copy-monaco": "node -e \"require('fs').cpSync('node_modules/monaco-editor/min/vs','dist/renderer/vs',{recursive:true})\"",
+    "bundle-preload": "esbuild src/preload/index.ts --bundle --platform=node --format=cjs --outfile=dist/preload/index.js --external:electron",
+    "dev": "tsc -p tsconfig.json && npm run copy-renderer && npm run copy-monaco && npm run bundle-preload && electron .",
+    "build": "tsc -p tsconfig.json && npm run copy-renderer && npm run copy-monaco && npm run bundle-preload",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "dist": "echo \"STUB(HP-012): packaging via electron-builder not implemented yet\" && exit 0"
   },
   "dependencies": {
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
     "@typescript-eslint/parser": "^7.16.0",
     "electron": "^31.2.1",
+    "esbuild": "^0.21.5",
     "eslint": "^8.57.0",
+    "monaco-editor": "^0.57.0",
     "typescript": "^5.5.3",
     "vitest": "^1.6.0"
   }

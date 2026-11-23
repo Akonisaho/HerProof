@@ -1,0 +1,122 @@
+@model HerProof.Web.Models.Passports.PassportDashboardViewModel
+@{
+    ViewData["Title"] = "My Skills Passport";
+    var shareToken = TempData["ShareToken"] as string;
+    var shareId = TempData["ShareId"] as string;
+}
+
+<h1>My Skills Passport</h1>
+
+@if (Model.Passport is null)
+{
+    <p>You don't have any verified credentials yet. Once an assessor verifies a competency, it will appear here.</p>
+    return;
+}
+
+<p>Passport number: <strong>@Model.Passport.PassportNumber</strong></p>
+<p><a asp-action="ExportPdf" class="btn btn-outline-secondary btn-sm">Export as PDF</a></p>
+
+@if (!string.IsNullOrEmpty(shareToken))
+{
+    var verifyUrl = Url.Action("Show", "PassportVerification", new { token = shareToken }, Context.Request.Scheme);
+    <div class="alert alert-success">
+        <strong>Share link created.</strong> This is the only time the full link is shown — save it now.<br />
+        <code>@verifyUrl</code><br />
+        <img src="@Url.Action("ShareQrCode", "Passport", new { shareId, token = shareToken })" alt="QR code for this share" width="160" height="160" />
+    </div>
+}
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+<h2 class="h5">Verified</h2>
+@if (Model.VerifiedCredentials.Count == 0)
+{
+    <p class="text-muted">No verified credentials yet.</p>
+}
+else
+{
+    <ul>
+        @foreach (var (credential, competencyName) in Model.VerifiedCredentials)
+        {
+            <li>
+                <strong>@competencyName</strong> — <code>@credential.CredentialIdentifier</code>
+                — issued @credential.IssuedAtUtc.ToString("yyyy-MM-dd")
+                @(credential.ValidUntilUtc is not null ? $"(valid until {credential.ValidUntilUtc:yyyy-MM-dd})" : "")
+                — @credential.CredentialStatus
+            </li>
+        }
+    </ul>
+}
+
+<h2 class="h5">Not yet verified</h2>
+@if (Model.UnverifiedCompetencies.Count == 0)
+{
+    <p class="text-muted">Nothing in progress.</p>
+}
+else
+{
+    <ul>
+        @foreach (var (cc, competencyName) in Model.UnverifiedCompetencies)
+        {
+            <li>@competencyName — <em>@cc.Status</em> (not verified)</li>
+        }
+    </ul>
+}
+
+<h2 class="h5">Share a credential</h2>
+@if (Model.VerifiedCredentials.Count == 0)
+{
+    <p class="text-muted">Get a credential verified before creating a share link.</p>
+}
+else
+{
+    <form asp-action="CreateShare" method="post">
+        @foreach (var (credential, competencyName) in Model.VerifiedCredentials)
+        {
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="SelectedCredentialIdentifiers" value="@credential.CredentialIdentifier" id="cred-@credential.Id" />
+                <label class="form-check-label" for="cred-@credential.Id">@competencyName (@credential.CredentialIdentifier)</label>
+            </div>
+        }
+        <div class="mb-3 mt-2">
+            <label class="form-label">Expires in (days, optional)</label>
+            <input type="number" min="1" name="ExpiresInDays" class="form-control max-w-xs" />
+        </div>
+        <button type="submit" class="btn btn-primary">Create share link</button>
+    </form>
+}
+
+<h2 class="h5">Active share links</h2>
+@if (Model.ActiveShares.Count == 0)
+{
+    <p class="text-muted">None.</p>
+}
+else
+{
+    <ul>
+        @foreach (var share in Model.ActiveShares)
+        {
+            <li>
+                Created @share.CreatedAtUtc.ToString("yyyy-MM-dd") — exposes @share.VisibleFields.Count credential(s)
+                @(share.ExpiresAtUtc is not null ? $"— expires {share.ExpiresAtUtc:yyyy-MM-dd}" : "")
+                <form asp-action="RevokeShare" asp-route-shareId="@share.Id" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+                </form>
+            </li>
+        }
+    </ul>
+}
+
+@if (Model.RevokedOrExpiredShares.Count > 0)
+{
+    <h2 class="h5">Revoked / expired share links</h2>
+    <ul>
+        @foreach (var share in Model.RevokedOrExpiredShares)
+        {
+            <li>Created @share.CreatedAtUtc.ToString("yyyy-MM-dd") — @(share.IsRevoked ? "revoked" : "expired")</li>
+        }
+    </ul>
+}

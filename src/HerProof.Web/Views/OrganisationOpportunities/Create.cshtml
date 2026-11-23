@@ -1,0 +1,31 @@
+@model HerProof.Web.Models.Opportunities.CreateOpportunityViewModel
+@{
+    ViewData["Title"] = "Post an opportunity";
+}
+
+<h1>Post an opportunity</h1>
+
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control"></textarea>
+    </div>
+    <div class="mb-3">
+        <label asp-for="OpportunityType" class="form-label"></label>
+        <select asp-for="OpportunityType" asp-items="Html.GetEnumSelectList<HerProof.Domain.Opportunities.OpportunityType>()" class="form-select"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Location" class="form-label"></label>
+        <input asp-for="Location" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="DeadlineUtc" class="form-label"></label>
+        <input asp-for="DeadlineUtc" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary">Create</button>
+</form>

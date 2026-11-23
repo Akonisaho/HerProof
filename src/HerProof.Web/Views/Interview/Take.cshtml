@@ -1,0 +1,79 @@
+@model HerProof.Web.Models.Interviews.SubmitAnswerViewModel
+@using HerProof.Domain.Interviews
+@{
+    ViewData["Title"] = "Interview with Thandi";
+    var question = (InterviewQuestion)ViewBag.Question;
+    var interview = (Interview)ViewBag.Interview;
+    var activeTurn = question.Turns.OrderBy(t => t.TurnIndex).Last();
+    var isVoice = interview.Mode == InterviewMode.Voice;
+}
+
+<div class="thandi-row">
+    <div class="thandi-avatar" id="thandi-avatar">T</div>
+    <div>
+        <span class="thandi-name">Thandi</span>
+        <span class="thandi-status" id="thandi-status">Your interviewer</span>
+    </div>
+</div>
+<p class="text-muted">
+    Only the content of your answers is assessed — never accent, pronunciation, appearance or emotion.
+    You can take your time.
+</p>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <p class="lead" id="prompt-text">@activeTurn.PromptText</p>
+        @if (!string.IsNullOrEmpty(question.SnippetFilePath))
+        {
+            <p class="small text-muted"><code>@question.SnippetFilePath</code> lines @question.SnippetLines</p>
+        }
+
+        @if (isVoice)
+        {
+            <button type="button" id="play-question-btn" class="btn btn-sm btn-outline-secondary">🔊 Play question</button>
+            <audio id="prompt-audio" class="d-none"></audio>
+        }
+    </div>
+</div>
+
+@if (isVoice)
+{
+    <div class="card mb-3" id="voice-panel" data-interview-id="@interview.Id" data-turn-id="@activeTurn.Id">
+        <div class="card-body">
+            <p class="mb-2">
+                <span id="recording-indicator" class="badge bg-danger d-none">● Listening</span>
+            </p>
+            <button type="button" id="record-btn" class="btn btn-outline-danger">🎤 Record my answer</button>
+            <button type="button" id="stop-btn" class="btn btn-outline-secondary d-none">⬛ Stop</button>
+            <div id="voice-unsupported" class="text-muted small mt-2 d-none">
+                Voice recording isn't supported in this browser (try Chrome or Edge) — please type your answer below.
+            </div>
+            <div id="voice-error" class="text-danger small mt-2 d-none"></div>
+        </div>
+    </div>
+}
+
+<form asp-action="Answer" asp-route-interviewId="@interview.Id" method="post" id="answer-form">
+    <input type="hidden" asp-for="TurnId" />
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Answer" class="form-label">
+            @(isVoice ? "Your answer (speak it, or type/correct it here before submitting)" : "Your answer")
+        </label>
+        <textarea asp-for="Answer" class="form-control" rows="6" id="answer-textarea"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit answer</button>
+    @if (isVoice)
+    {
+        <button type="submit" formaction="@Url.Action("SwitchToText", new { interviewId = interview.Id })" class="btn btn-link">Switch to typing for the rest of this interview</button>
+    }
+</form>
+
+<p class="mt-3 small text-muted">Question @(question.QuestionOrder + 1) of @interview.Questions.Count</p>
+
+@section Scripts {
+    @if (isVoice)
+    {
+        <script src="~/js/interview-voice.js" asp-append-version="true"></script>
+    }
+}

@@ -1,0 +1,23 @@
+@model IReadOnlyList<HerProof.Domain.Assessments.Assessment>
+@{
+    ViewData["Title"] = "Your assessments";
+}
+
+<h1>Your assessments</h1>
+<p><a asp-action="Create" class="btn btn-primary">Create an assessment</a></p>
+
+<table class="table">
+    <thead><tr><th>Title</th><th>Type</th><th>Duration</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var a in Model)
+        {
+            <tr>
+                <td>@a.Title</td>
+                <td>@a.AssessmentType</td>
+                <td>@a.DurationMinutes min</td>
+                <td>@a.Status</td>
+                <td><a asp-action="Details" asp-route-assessmentId="@a.Id">Manage</a></td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -1,6 +1,93 @@
 ﻿@{
-    ViewData["Title"] = "Privacy Policy";
+    ViewData["Title"] = "Privacy";
 }
-<h1>@ViewData["Title"]</h1>
 
-<p>Use this page to detail your site's privacy policy.</p>
+<div class="hero-wrap">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">Privacy &amp; data</span>
+        <h1>Your data, plainly explained</h1>
+        <p class="lead">
+            HerProof exists to prove what you can do, not to collect more about you than that requires.
+            This page says what we collect, why, how long we keep it, and what you can do about it —
+            in the same plain language we'd use if you asked us directly.
+        </p>
+    </div>
+</div>
+
+<section class="brand-section">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="brand-card h-100">
+                <h3>What we collect</h3>
+                <p>
+                    Your account details, the profile fields you choose to fill in (province, education,
+                    gender, income band — all optional, used only to check bursary/job eligibility, never
+                    for AI scoring), the repositories and interview answers you submit as evidence, and
+                    the integrity events logged during a timed practical assessment.
+                </p>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="brand-card h-100">
+                <h3>How it's used</h3>
+                <p>
+                    Solely to assess your competencies against the requirements of opportunities you
+                    apply to, and to produce your Skills Passport. An AI may suggest a recommendation
+                    from your evidence — it never makes the final call. Only a qualified human assessor
+                    can mark a competency Verified.
+                </p>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="brand-card h-100">
+                <h3>How long we keep it</h3>
+                <p>
+                    Interview transcripts are automatically redacted 180 days after they're recorded.
+                    Verification records and the audit log are kept to preserve your credential's
+                    integrity, but only the minimum needed — never audio or video recordings, which
+                    we never store at all; voice answers are transcribed live in your own browser and
+                    never leave your device.
+                </p>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="brand-card h-100">
+                <h3>What your public Passport shows</h3>
+                <p>
+                    Only what you choose to share: a competency name, level, credential identifier and
+                    validity dates. A verify link never exposes recordings, transcripts, private
+                    repository code, contact details, integrity events or scores — even to someone who
+                    has the link.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="brand-section-muted">
+    <div class="row align-items-center g-4">
+        <div class="col-lg-8">
+            <h2>Your data, your call</h2>
+            <p class="text-muted mb-0">
+                Export everything HerProof holds about you as a file, or ask us to delete your
+                identifying information entirely. Both are available from your own account, any time
+                you're signed in — no support ticket required.
+            </p>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+            <a href="/privacy/export" class="btn-brand-outline">Export my data</a>
+        </div>
+    </div>
+</section>
+
+<section class="brand-section">
+    <h2 class="mb-4">A few more specifics</h2>
+    <ul class="privacy-list">
+        <li>We never score accent, face, pronunciation, emotion or fluency — only the content of what you write or say.</li>
+        <li>Candidate code only ever runs in a disposable, network-isolated sandbox — never on our own servers directly.</li>
+        <li>Every sign-in, password reset, and verification decision is written to an append-only audit log, so history can never be quietly edited.</li>
+        <li>If you decline voice consent, your interview continues exactly the same way, just typed — with no penalty and the same rubric.</li>
+    </ul>
+</section>

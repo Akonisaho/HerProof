@@ -1,0 +1,81 @@
+@model IReadOnlyList<HerProof.Domain.Repositories.Repository>
+@using HerProof.Domain.Repositories
+@using HerProof.Domain.Opportunities
+@{
+    ViewData["Title"] = "Your repositories";
+    var latestByRepository = (IReadOnlyDictionary<Guid, RepositoryAnalysis>)ViewBag.LatestAnalysisByRepository;
+    var opportunities = (IReadOnlyList<Opportunity>)ViewBag.PublishedOpportunities;
+
+    static string StatusBadgeClass(RepositoryAnalysisStatus status) => status switch
+    {
+        RepositoryAnalysisStatus.Completed => "badge bg-success",
+        RepositoryAnalysisStatus.Failed => "badge bg-danger",
+        RepositoryAnalysisStatus.NeedsRetry => "badge bg-warning text-dark",
+        _ => "badge bg-secondary",
+    };
+
+    static (string Class, string Label) ContributorBadge(ContributorVerificationStatus status) => status switch
+    {
+        ContributorVerificationStatus.Confirmed => ("badge bg-success", "✓ Contributor confirmed"),
+        ContributorVerificationStatus.NotConfirmed => ("badge bg-warning text-dark", "Contributor not confirmed"),
+        _ => ("badge bg-light text-dark border", "Contributor not checked"),
+    };
+}
+
+<h1>Your repositories</h1>
+<p><a asp-action="Submit" class="btn btn-primary">Submit a repository</a></p>
+
+@if (TempData["AnalysisMessage"] is string analysisMessage)
+{
+    <div class="alert alert-info">@analysisMessage</div>
+}
+
+<table class="table">
+    <thead><tr><th>Repository</th><th>Branch</th><th>Commit</th><th>Submitted</th><th>Analysis</th></tr></thead>
+    <tbody>
+        @foreach (var repo in Model)
+        {
+            <tr>
+                <td>
+                    <a href="@repo.RepositoryUrl" target="_blank" rel="noopener">@repo.RepositoryName</a>
+                    <div class="mt-1">
+                        @{ var (contributorClass, contributorLabel) = ContributorBadge(repo.ContributorStatus); }
+                        <span class="@contributorClass small">@contributorLabel</span>
+                    </div>
+                </td>
+                <td>@repo.Branch</td>
+                <td><code>@repo.CommitSha[..Math.Min(7, repo.CommitSha.Length)]</code></td>
+                <td>@repo.SubmittedAtUtc.ToString("u")</td>
+                <td>
+                    @if (latestByRepository.TryGetValue(repo.Id, out var analysis))
+                    {
+                        <span class="@StatusBadgeClass(analysis.Status)">@analysis.Status</span>
+                        @if (analysis.IsDemoData)
+                        {
+                            <span class="badge bg-info text-dark">Demo data</span>
+                        }
+                        @if (analysis.Status == RepositoryAnalysisStatus.Completed)
+                        {
+                            <div class="small text-muted">
+                                @analysis.Summary (@analysis.Findings.Count finding(s), model: @analysis.ModelVersion)
+                            </div>
+                            @if (opportunities.Count > 0)
+                            {
+                                <form asp-controller="Interview" asp-action="Consent" method="get" class="mt-1 d-flex gap-1">
+                                    <select name="opportunityId" class="form-select form-select-sm">
+                                        @foreach (var o in opportunities)
+                                        {
+                                            <option value="@o.Id">@o.Title</option>
+                                        }
+                                    </select>
+                                    <input type="hidden" name="repositoryId" value="@repo.Id" />
+                                    <button type="submit" class="btn btn-sm btn-primary">Start interview with Thandi</button>
+                                </form>
+                            }
+                        }
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

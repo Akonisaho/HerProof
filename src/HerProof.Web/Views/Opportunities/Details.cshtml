@@ -1,0 +1,133 @@
+@model HerProof.Domain.Opportunities.Opportunity
+@using HerProof.Application.Opportunities
+@using HerProof.Domain.Competencies
+@using HerProof.Domain.Opportunities
+@{
+    ViewData["Title"] = Model.Title;
+    var competencyNames = (IReadOnlyDictionary<Guid, string>)ViewBag.CompetencyNames;
+    var eligibility = (OpportunityEligibilitySummary?)ViewBag.Eligibility;
+    var alreadyApplied = (bool)ViewBag.AlreadyApplied;
+    var gapReport = (GapReport?)ViewBag.GapReport;
+    var learningProgressByResourceId = ViewBag.LearningProgressByResourceId as IReadOnlyDictionary<Guid, LearningProgressStatus> ?? new Dictionary<Guid, LearningProgressStatus>();
+    var candidateCompetencyStatusByCompetencyId = ViewBag.CandidateCompetencyStatusByCompetencyId as IReadOnlyDictionary<Guid, CandidateCompetencyStatus> ?? new Dictionary<Guid, CandidateCompetencyStatus>();
+    var ownedCredentials = ViewBag.OwnedCredentials as List<(string CredentialIdentifier, string CompetencyName)> ?? [];
+    var currentUrl = Context.Request.Path + Context.Request.QueryString;
+
+    static string StateLabel(EvidenceState state) => state switch
+    {
+        EvidenceState.Demonstrated => "Demonstrated",
+        EvidenceState.ClaimedNotAssessed => "Not yet assessed",
+        EvidenceState.NotDemonstrated => "Not demonstrated",
+        EvidenceState.NoEvidence => "No evidence yet",
+        _ => state.ToString(),
+    };
+
+    static string StateBadgeClass(EvidenceState state) => state switch
+    {
+        EvidenceState.Demonstrated => "badge bg-success",
+        EvidenceState.ClaimedNotAssessed => "badge bg-warning text-dark",
+        EvidenceState.NotDemonstrated => "badge bg-secondary",
+        EvidenceState.NoEvidence => "badge bg-light text-dark border",
+        _ => "badge bg-light text-dark",
+    };
+}
+
+<h1>@Model.Title</h1>
+<p>@Model.OpportunityType @(string.IsNullOrEmpty(Model.Location) ? "" : $"· {Model.Location}")
+   @(Model.DeadlineUtc is not null ? $"· Closes {Model.DeadlineUtc:yyyy-MM-dd}" : "")</p>
+<p>@Model.Description</p>
+
+<h2>Required competencies</h2>
+@if (gapReport is not null)
+{
+    <p>Three distinct states — none of them a zero (CLAUDE.md rule 2): <strong>Demonstrated</strong>,
+       <strong>Not yet assessed</strong> (claimed or no evidence), and <strong>Not demonstrated</strong> (assessed and found wanting).</p>
+    <ul class="list-group mb-3">
+        @foreach (var item in gapReport.Items)
+        {
+            <li class="list-group-item">
+                <span class="@StateBadgeClass(item.EvidenceState)">@StateLabel(item.EvidenceState)</span>
+                <strong>@competencyNames.GetValueOrDefault(item.CompetencyId, "(unknown)")</strong>
+                — required level @item.RequiredLevel
+                @(item.DemonstratedLevel is not null ? $", demonstrated level {item.DemonstratedLevel}" : "")
+                <div class="text-muted small">@item.Explanation</div>
+
+                @if (item.LearningResourceId is not null)
+                {
+                    var progressStatus = learningProgressByResourceId.GetValueOrDefault(item.LearningResourceId.Value, LearningProgressStatus.NotStarted);
+                    <form asp-controller="Learning" asp-action="SetProgress" asp-route-learningResourceId="@item.LearningResourceId" method="post" class="mt-1">
+                        <input type="hidden" name="returnUrl" value="@currentUrl" />
+                        <span class="text-muted small">Learning progress: <strong>@progressStatus</strong></span>
+                        @if (progressStatus != LearningProgressStatus.InProgress)
+                        {
+                            <button type="submit" name="status" value="InProgress" class="btn btn-sm btn-outline-secondary">Mark started</button>
+                        }
+                        @if (progressStatus != LearningProgressStatus.Completed)
+                        {
+                            <button type="submit" name="status" value="Completed" class="btn btn-sm btn-outline-success">Mark completed</button>
+                        }
+                    </form>
+                }
+
+                @if (candidateCompetencyStatusByCompetencyId.TryGetValue(item.CompetencyId, out var ccStatus)
+                    && ccStatus is CandidateCompetencyStatus.Developing or CandidateCompetencyStatus.NotDemonstrated)
+                {
+                    <form asp-controller="Learning" asp-action="RequestReassessment" asp-route-competencyId="@item.CompetencyId" method="post" class="mt-1">
+                        <input type="hidden" name="returnUrl" value="@currentUrl" />
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Request reassessment</button>
+                    </form>
+                }
+            </li>
+        }
+    </ul>
+}
+else
+{
+    <ul>
+        @foreach (var rc in Model.RequiredCompetencies)
+        {
+            <li>@competencyNames.GetValueOrDefault(rc.CompetencyId, "(unknown)") — level @rc.RequiredLevel @(rc.IsMandatory ? "(mandatory)" : "(preferred)")</li>
+        }
+    </ul>
+}
+
+@if (eligibility is not null)
+{
+    <h2>Eligibility</h2>
+    <ul>
+        @foreach (var rule in eligibility.Rules)
+        {
+            <li>
+                @rule.Explanation —
+                <strong>@rule.Result</strong>
+                @(rule.IsHardFilter ? "(required)" : "(informational)")
+            </li>
+        }
+    </ul>
+
+    @if (alreadyApplied)
+    {
+        <p><em>You've already applied to this opportunity.</em></p>
+    }
+    else if (eligibility.IsBlockedByHardFilter)
+    {
+        <p class="text-danger">You do not currently meet a required eligibility rule for this opportunity.</p>
+    }
+    else
+    {
+        <form asp-action="Apply" asp-route-opportunityId="@Model.Id" method="post">
+            @if (ownedCredentials.Count > 0)
+            {
+                <p>Attach any of your verified Skills Passport credentials to this application (optional):</p>
+                foreach (var (identifier, competencyName) in ownedCredentials)
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="selectedCredentialIdentifiers" value="@identifier" id="apply-cred-@identifier" />
+                        <label class="form-check-label" for="apply-cred-@identifier">@competencyName (@identifier)</label>
+                    </div>
+                }
+            }
+            <button type="submit" class="btn btn-primary mt-2">Apply</button>
+        </form>
+    }
+}

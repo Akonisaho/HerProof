@@ -2,13 +2,55 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
     <title>HerProof Assessment Agent</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem; background: #f7f7fb; color: #1a1a2e; }
+      h1 { font-size: 1.25rem; }
+      #consent-screen, #assessment-screen { max-width: 900px; margin: 0 auto; }
+      #event-list { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; max-height: 200px; overflow-y: auto; }
+      #event-list li { padding: 0.25rem 0.5rem; border-bottom: 1px solid #e0e0e8; }
+      #event-list li.flag { background: #fff3cd; }
+      #editor-container { width: 100%; height: 300px; border: 1px solid #e0e0e8; }
+      #timer { font-size: 1.5rem; font-weight: bold; }
+      #timer.low-time { color: #c0392b; }
+      button { padding: 0.5rem 1rem; cursor: pointer; }
+      .hidden { display: none; }
+      .panel { background: white; border: 1px solid #e0e0e8; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+    </style>
   </head>
   <body>
-    <main>
-      <h1>HerProof Assessment Agent</h1>
-      <p>STUB(HP-012): consent screen, timer, Monaco editor and sync come with the full Electron build.</p>
-    </main>
+    <div id="consent-screen">
+      <h1>Before we start</h1>
+      <div class="panel">
+        <p>This agent records only the following events. Nothing else — no screen capture, no keystroke
+           logging, no clipboard reading, no inspection of other applications.</p>
+        <ul id="consent-event-list"></ul>
+        <p>These events are flags for a human assessor to review. They are <strong>never</strong> used to
+           automatically fail you, and you see the same log the assessor sees, live, as it happens.</p>
+      </div>
+      <button id="consent-button">I understand — start the assessment</button>
+    </div>
+
+    <div id="assessment-screen" class="hidden">
+      <div class="panel" style="display:flex; justify-content:space-between; align-items:center;">
+        <h1>Assessment in progress</h1>
+        <div id="timer">00:00</div>
+      </div>
+
+      <div class="panel">
+        <label><strong>Your workspace</strong></label>
+        <div id="editor-container"></div>
+      </div>
+
+      <div class="panel">
+        <strong>Integrity log</strong> — exactly what the assessor sees, nothing more
+        <ul id="event-list"></ul>
+      </div>
+
+      <button id="submit-button">Submit</button>
+    </div>
+
+    <script src="app.js"></script>
   </body>
 </html>

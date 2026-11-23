@@ -1,0 +1,87 @@
+@model HerProof.Web.Models.Opportunities.OrganisationOpportunityDetailViewModel
+@{
+    ViewData["Title"] = Model.Opportunity.Title;
+    var organisationId = Model.Opportunity.OrganisationId;
+    var opportunityId = Model.Opportunity.Id;
+}
+
+<h1>@Model.Opportunity.Title</h1>
+<p>@Model.Opportunity.OpportunityType &middot; Status: <strong>@Model.Opportunity.Status</strong></p>
+<p>@Model.Opportunity.Description</p>
+<p><a asp-action="Applications" asp-route-organisationId="@organisationId" asp-route-opportunityId="@opportunityId">Review applications</a></p>
+
+@if (Model.Opportunity.Status == HerProof.Domain.Opportunities.OpportunityStatus.Draft)
+{
+    <form asp-action="Publish" asp-route-organisationId="@organisationId" asp-route-opportunityId="@opportunityId" method="post" class="d-inline">
+        <button type="submit" class="btn btn-success">Publish</button>
+    </form>
+}
+else if (Model.Opportunity.Status == HerProof.Domain.Opportunities.OpportunityStatus.Published)
+{
+    <form asp-action="Close" asp-route-organisationId="@organisationId" asp-route-opportunityId="@opportunityId" method="post" class="d-inline">
+        <button type="submit" class="btn btn-outline-danger">Close</button>
+    </form>
+}
+
+<h2>Required competencies</h2>
+<ul>
+    @foreach (var rc in Model.Opportunity.RequiredCompetencies)
+    {
+        <li>@Model.CompetencyNames.GetValueOrDefault(rc.CompetencyId, "(unknown)") — level @rc.RequiredLevel @(rc.IsMandatory ? "(mandatory)" : "(preferred)")</li>
+    }
+</ul>
+<form asp-action="AddCompetency" asp-route-organisationId="@organisationId" asp-route-opportunityId="@opportunityId" method="post" class="row g-2 align-items-end">
+    <div class="col-auto">
+        <label class="form-label">Competency</label>
+        <select name="CompetencyId" class="form-select">
+            @foreach (var c in Model.AvailableCompetencies)
+            {
+                <option value="@c.Id">@c.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Required level</label>
+        <input type="number" name="RequiredLevel" min="0" max="4" class="form-control" value="2" />
+    </div>
+    <div class="col-auto form-check">
+        <input type="checkbox" name="IsMandatory" value="true" class="form-check-input" checked />
+        <label class="form-check-label">Mandatory</label>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-secondary">Add requirement</button>
+    </div>
+</form>
+
+<h2>Eligibility rules</h2>
+<ul>
+    @foreach (var rule in Model.Opportunity.EligibilityRules)
+    {
+        <li>@rule.RuleType @rule.Operator "@rule.Value" @(rule.IsHardFilter ? "(hard filter)" : "(informational)") — @rule.Explanation</li>
+    }
+</ul>
+<form asp-action="AddEligibilityRule" asp-route-organisationId="@organisationId" asp-route-opportunityId="@opportunityId" method="post" class="row g-2 align-items-end">
+    <div class="col-auto">
+        <label class="form-label">Rule type</label>
+        <select name="RuleType" asp-items="Html.GetEnumSelectList<HerProof.Domain.Opportunities.EligibilityRuleType>()" class="form-select"></select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Operator</label>
+        <select name="Operator" asp-items="Html.GetEnumSelectList<HerProof.Domain.Opportunities.EligibilityOperator>()" class="form-select"></select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Value</label>
+        <input name="Value" class="form-control" placeholder="e.g. Gauteng, or Low,Medium, or 18-25, or Any" />
+    </div>
+    <div class="col-auto form-check">
+        <input type="checkbox" name="IsHardFilter" value="true" class="form-check-input" />
+        <label class="form-check-label">Hard filter</label>
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Explanation</label>
+        <input name="Explanation" class="form-control" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-secondary">Add rule</button>
+    </div>
+</form>

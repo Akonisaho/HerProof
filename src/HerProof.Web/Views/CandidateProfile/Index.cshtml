@@ -1,0 +1,27 @@
+@model HerProof.Domain.Identity.CandidateProfile
+@{
+    ViewData["Title"] = "Your profile";
+}
+
+<h1>Your profile</h1>
+<p><a asp-action="Edit" asp-route-candidateProfileId="@Model.Id" class="btn btn-primary btn-sm">Edit profile</a></p>
+<dl>
+    <dt>Province</dt>
+    <dd>@(Model.Province ?? "Not set")</dd>
+    <dt>Education level</dt>
+    <dd>@(Model.EducationLevel ?? "Not set")</dd>
+    <dt>Gender</dt>
+    <dd>@(Model.GenderDeclared ?? "Not set")</dd>
+    <dt>Household income band</dt>
+    <dd>@(Model.HouseholdIncomeBand ?? "Not set")</dd>
+    <dt>Field of study</dt>
+    <dd>@(Model.FieldOfStudy ?? "Not set")</dd>
+    <dt>Date of birth</dt>
+    <dd>@(Model.DateOfBirth?.ToString("yyyy-MM-dd") ?? "Not set")</dd>
+    <dt>Career interests</dt>
+    <dd>@(Model.CareerInterests ?? "Not set")</dd>
+    <dt>GitHub profile</dt>
+    <dd>@(Model.GitHubProfile ?? "Not set")</dd>
+    <dt>LinkedIn profile</dt>
+    <dd>@(Model.LinkedInProfile ?? "Not set")</dd>
+</dl>

@@ -1,0 +1,50 @@
+@model HerProof.Web.Models.Opportunities.OrganisationApplicationsViewModel
+@using HerProof.Domain.Opportunities
+@{
+    ViewData["Title"] = $"Applications — {Model.Opportunity.Title}";
+    var organisationId = Model.Opportunity.OrganisationId;
+    var opportunityId = Model.Opportunity.Id;
+}
+
+<h1>Applications — @Model.Opportunity.Title</h1>
+
+@if (Model.Applications.Count == 0)
+{
+    <p class="text-muted">No applications yet.</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var item in Model.Applications)
+        {
+            <li class="list-group-item">
+                <strong>@item.CandidateName</strong> — @item.Application.Status
+                (submitted @item.Application.SubmittedAtUtc.ToString("yyyy-MM-dd"))
+
+                @if (item.AttachedCredentials.Count > 0)
+                {
+                    <div>
+                        Attached verified credentials:
+                        <ul>
+                            @foreach (var (identifier, competencyName) in item.AttachedCredentials)
+                            {
+                                <li>@competencyName — <code>@identifier</code></li>
+                            }
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-muted small">No passport credentials attached.</div>
+                }
+
+                @if (item.Application.Status != CandidateApplicationStatus.Reviewed)
+                {
+                    <form asp-action="MarkApplicationReviewed" asp-route-organisationId="@organisationId" asp-route-opportunityId="@opportunityId" asp-route-applicationId="@item.Application.Id" method="post">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Mark reviewed</button>
+                    </form>
+                }
+            </li>
+        }
+    </ul>
+}
