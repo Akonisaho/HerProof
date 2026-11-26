@@ -6,7 +6,7 @@ COPY src/ src/
 RUN dotnet restore src/HerProof.AssessmentWorker/HerProof.AssessmentWorker.csproj
 RUN dotnet publish src/HerProof.AssessmentWorker/HerProof.AssessmentWorker.csproj -c Release -o /app --no-restore
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/runtime:11.0 AS runtime
 WORKDIR /app
 COPY --from=build /app .
 ENV DOTNET_EnableDiagnostics=0
