@@ -7,6 +7,15 @@
 <p>Public GitHub repositories only for now. We pin the exact commit so your analysis and interview are
    based on precisely what you submitted.</p>
 
+@if (ViewBag.MissingGitHubProfile is true)
+{
+    <div class="dev-link-box mb-3">
+        <p class="dev-link-label mb-0">Add your GitHub profile first</p>
+        <p class="mb-2">Without it, we can't check that you're actually a contributor to the repo you submit - it'll still be analysed, but marked "Contributor not checked" instead of confirmed.</p>
+        <a href="/my-profile" class="btn-brand">Add GitHub profile</a>
+    </div>
+}
+
 <form asp-action="Submit" method="post">
     <div asp-validation-summary="All" class="text-danger"></div>
     <div class="mb-3">

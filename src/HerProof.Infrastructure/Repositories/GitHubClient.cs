@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using HerProof.Application.Repositories;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -28,6 +29,24 @@ public class GitHubClient(HttpClient httpClient, IMemoryCache cache) : IGitHubCl
 
         cache.Set(cacheKey, sha, TimeSpan.FromMinutes(5));
         return sha;
+    }
+
+    public async Task<string> GetDefaultBranchAsync(string owner, string repo, CancellationToken cancellationToken = default)
+    {
+        var cacheKey = $"github:default-branch:{owner}/{repo}";
+        if (cache.TryGetValue(cacheKey, out string? cachedBranch) && cachedBranch is not null)
+        {
+            return cachedBranch;
+        }
+
+        using var response = await httpClient.GetAsync($"repos/{owner}/{repo}", cancellationToken);
+        EnsureSuccess(response, owner, repo);
+
+        var payload = await response.Content.ReadFromJsonAsync<RepoResponse>(cancellationToken: cancellationToken);
+        var branch = payload?.DefaultBranch ?? throw new InvalidOperationException("GitHub returned no default branch.");
+
+        cache.Set(cacheKey, branch, TimeSpan.FromMinutes(5));
+        return branch;
     }
 
     public async Task<IReadOnlyList<GitHubTreeEntry>> GetTreeAsync(string owner, string repo, string commitSha, CancellationToken cancellationToken = default)
@@ -121,10 +140,12 @@ public class GitHubClient(HttpClient httpClient, IMemoryCache cache) : IGitHubCl
             throw new GitHubRateLimitException(retryAfter > TimeSpan.Zero ? retryAfter : TimeSpan.FromSeconds(60));
         }
 
-        response.EnsureSuccessStatusCode();
+        throw new GitHubApiException(response.StatusCode, response.ReasonPhrase);
     }
 
     private record CommitResponse(string Sha);
+
+    private record RepoResponse([property: JsonPropertyName("default_branch")] string? DefaultBranch);
 
     private record TreeResponse(List<TreeEntryResponse> Tree);
 

@@ -30,6 +30,16 @@ public class Opportunity : Entity
     public DateTime? DeadlineUtc { get; private set; }
     public OpportunityStatus Status { get; private set; } = OpportunityStatus.Draft;
 
+    /// <summary>Both null means the recruiter chose not to disclose a salary ("N/A"), shown as such
+    /// rather than left blank. Equal, non-null min/max is a specific amount; a differing min/max is a
+    /// range. Never used for AI scoring or eligibility — display and candidate-side filtering only.</summary>
+    public decimal? SalaryMin { get; private set; }
+    public decimal? SalaryMax { get; private set; }
+
+    /// <summary>Years of relevant experience the role asks for — informational and filterable, not an
+    /// eligibility hard-filter (a candidate can still apply; CLAUDE.md "never a zero").</summary>
+    public int? ExperienceYearsRequired { get; private set; }
+
     public IReadOnlyCollection<OpportunityCompetency> RequiredCompetencies => _requiredCompetencies;
     public IReadOnlyCollection<EligibilityRule> EligibilityRules => _eligibilityRules;
 
@@ -47,6 +57,13 @@ public class Opportunity : Entity
         OpportunityType = opportunityType;
         Location = location;
         DeadlineUtc = deadlineUtc;
+    }
+
+    public void SetCompensationAndExperience(decimal? salaryMin, decimal? salaryMax, int? experienceYearsRequired)
+    {
+        SalaryMin = salaryMin;
+        SalaryMax = salaryMax;
+        ExperienceYearsRequired = experienceYearsRequired;
     }
 
     public void Publish() => Status = OpportunityStatus.Published;

@@ -140,10 +140,70 @@ function wireNetworkEvents() {
   window.addEventListener("online", () => window.herproof.recordEvent({ eventType: "network_restored" }));
 }
 
+/**
+ * Device *presence*, never device *content* (CLAUDE.md rule 4/5: no camera/microphone recording,
+ * ever — only this fixed, published event list). enumerateDevices() lists device kinds without
+ * ever calling getUserMedia, so no stream, no permission prompt, no frame or sample is ever
+ * captured here — just "a camera/microphone is now plugged in or unplugged".
+ */
+let lastDeviceCounts = { cameras: 0, microphones: 0 };
+
+function setDeviceStatus(elementId, label, count) {
+  const el = document.getElementById(elementId);
+  if (!el) {
+    return;
+  }
+
+  const detected = count > 0;
+  el.textContent = `${label}: ${detected ? `detected (${count})` : "not detected"}`;
+  el.classList.toggle("detected", detected);
+}
+
+async function checkDevices(isInitialCheck) {
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    setDeviceStatus("camera-status", "Camera", 0);
+    setDeviceStatus("microphone-status", "Microphone", 0);
+    return;
+  }
+
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter((d) => d.kind === "videoinput").length;
+    const microphones = devices.filter((d) => d.kind === "audioinput").length;
+    setDeviceStatus("camera-status", "Camera", cameras);
+    setDeviceStatus("microphone-status", "Microphone", microphones);
+
+    if (!isInitialCheck) {
+      if (cameras > lastDeviceCounts.cameras) {
+        window.herproof.recordEvent({ eventType: "camera_connected" });
+      } else if (cameras < lastDeviceCounts.cameras) {
+        window.herproof.recordEvent({ eventType: "camera_disconnected" });
+      }
+
+      if (microphones > lastDeviceCounts.microphones) {
+        window.herproof.recordEvent({ eventType: "microphone_connected" });
+      } else if (microphones < lastDeviceCounts.microphones) {
+        window.herproof.recordEvent({ eventType: "microphone_disconnected" });
+      }
+    }
+
+    lastDeviceCounts = { cameras, microphones };
+  } catch {
+    // Device enumeration can fail in some sandboxed contexts — this is a nice-to-have integrity
+    // signal, never a requirement for the assessment to proceed.
+  }
+}
+
+function wireDeviceEvents() {
+  void checkDevices(true);
+  navigator.mediaDevices?.addEventListener?.("devicechange", () => void checkDevices(false));
+}
+
 async function main() {
   renderConsentList();
   window.herproof.onEvent(appendEvent);
   wireNetworkEvents();
+  wireDeviceEvents();
 
   document.getElementById("consent-button").addEventListener("click", async () => {
     await window.herproof.startSession();

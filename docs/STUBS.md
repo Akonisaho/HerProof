@@ -21,9 +21,7 @@ real implementation.
 | HP-016 | RepositoryAnalysisBackgroundService | Single polling instance, 5s fixed interval, no exponential backoff or dead-letter handling for repeatedly-failing analyses | P17 hardening if needed |
 | HP-017 | RepositoryAnalysisBackgroundService | ExecutionReport's testsPassed/testsFailed are a crude 1/0 stand-in — the sandbox entrypoint reports only a pass/fail boolean, not real per-test counts | Parse the .trx inside the container if real counts matter later |
 | HP-018 | docker/Dockerfile.sandbox | `dotnet restore` inside the sandbox needs network for any real NuGet dependency, but the container runs with `--network none`; for most real candidate repos this means `restore_ok: false` honestly, not a fabricated pass | An offline NuGet cache baked into the image, or an allow-listed restore proxy step (docs/03 section 5) |
-| HP-019 | HerProof.Web GitHub error handling | A 422 (e.g. wrong branch name) and other non-404/non-rate-limit GitHub errors still surface as an unhandled 500 in both RepositoriesController and InterviewController, not a friendly message | Polish if time allows |
 | HP-020 | HerProof.AssessmentWorker | No retry/backoff on GitHubRateLimitException — a rate-limited analysis is marked Failed outright rather than requeued for later (docs/01 section 15 says "queue retry with backoff") | P17 hardening if needed |
-| HP-022 | InterviewController | No candidate-facing list of past interviews; only reachable from the repositories page's "Start interview" form | Polish if time allows |
 | HP-023 | AzureSpeechServices | Written against Azure's documented REST contracts, not exercised against a live key in this environment — no Speech__Key available here | Review against a real key before a rehearsal |
 | HP-024 | Voice layer (P11) | No browser-side audio capture, consent screen, or playback UI — needs a real browser and microphone to build and verify meaningfully, neither available in this environment. Text mode (P10) carries the full rubric with no voice at all, so the differentiator isn't blocked, just not demoed with actual speech yet | Before rehearsal, with a real browser |
 | HP-025 | electron-app/src/main/index.ts | Session context (sessionId/assessmentId/candidateId/accessToken) comes from environment variables, not a real OAuth2 PKCE sign-in (ADR-08) | P13, once Assessment/AssessmentSession has an API |
@@ -31,11 +29,36 @@ real implementation.
 | HP-029 | AssessmentEvaluationBackgroundService | No retry/dead-letter path if the worker crashes mid-evaluation after claiming — the submission stays claimed forever | P17 hardening if needed |
 | HP-030 | VerificationRecord / AssessorDashboardController.Decide | `VerificationRecord.AssessmentId` is non-nullable, but evidence packs routinely combine repository + interview evidence with no single formal Assessment behind them, so `Decide` currently passes `Guid.Empty` as a placeholder rather than a real Assessment id | Make AssessmentId nullable, or introduce an evidence-pack-level id, whichever P15/P17 needs |
 | HP-031 | PassportVerificationController.Show | Resolves a share by loading every passport's shares and hashing the given token in memory, rather than querying `passport_shares` by token hash directly | Query `db.PassportShares` directly if candidate count grows past hackathon scale |
-| HP-032 | DbSeeder | No `LearningResource` rows are seeded, so the opportunity-details page's "recommended learning resource" and progress-tracking UI (P16) has nothing to show out of the box in the demo data | P18 demo-mode seeding |
-| HP-033 | AssessorDashboardController.Decide | A decision can be submitted for a competency the candidate never claimed (no `CandidateCompetency` row yet); the `VerificationRecord` is still created (append-only, correct), but the `CandidateCompetency.ApplyAssessorDecision` call silently no-ops via `?.` since there's nothing to update. Not reachable from the real assessor queue (which only lists competencies already in EvidenceSubmitted/UnderAssessment/AssessmentCompleted), only by visiting the URL directly | Create the CandidateCompetency row if missing, if this turns out to matter |
 | HP-034 | docs/03-SECURITY-PRIVACY.md section 12 / docs/SECURITY-EXCEPTIONS.md | No CI-wired secrets scanner, no WCAG 2.2 AA audit tooling — all tracked with reasoning in docs/SECURITY-EXCEPTIONS.md rather than silently skipped. (Electron GUI re-verification and the CI pipeline itself are no longer exceptions — see round 5) | Before any real deployment / before the hackathon demo rehearsal |
 | HP-035 | docker/docker-compose.yml (minio service) | `IBlobStore` is named in CLAUDE.md's stack description but was never actually implemented anywhere in the codebase; `scripts/demo-reset.sh` deliberately skips starting minio since nothing uses it yet, to avoid an unnecessary image pull | If/when a real blob store is needed |
 | HP-036 | HerProof.AI/FakeAiService.cs | **Found live, real limitation**: the fake repository-analysis heuristic only ever detects README/markdown files — it has no code-structure detection at all, so it can never produce a finding with a real line reference. Since Thandi's question generation requires a snippet with a real line reference (`SnippetReferenceVerifier`), this means **no real public repository can ever produce a live interview without a real Anthropic API key** — not a voice-specific gap, it blocks the whole repo-to-interview pipeline for any actual code. Confirmed live against octocat/Hello-World and octocat/Spoon-Knife, both real repos, both produced 0 usable questions. The pre-seeded demo interview (P18) bypasses this entirely by inserting InterviewQuestion/Turn/Evaluation rows directly | Set a real `AI__ApiKey`, or extend FakeAiService with a code-aware heuristic if a demo must run live without one |
+
+## What's real post-P18, round 7 (demo-readiness pass: errors, polish, seed data, auto-publish)
+- **Friendly GitHub errors** (closes HP-019): any non-404/non-rate-limit GitHub API error (a 422 for
+  an invalid branch, a transient 5xx, etc.) previously fell through to
+  `HttpResponseMessage.EnsureSuccessStatusCode()`, surfacing as an unhandled 500. A new
+  `GitHubApiException` carries the real status code; `RepositoriesController` and
+  `InterviewController` both catch it and show a plain-language message instead, with the
+  candidate's already-saved interview answer never lost on the way.
+- **Opportunities auto-publish on creation**: a recruiter/partner's new post used to sit in Draft
+  until a separate "Publish" click — easy to forget mid-demo and look like nothing happened. It now
+  publishes immediately; "Close" is still there to take it down later. Verified live against the
+  real database: created via the real form flow, appeared on the public `/opportunities` listing
+  with zero extra clicks.
+- **Real learning resources seeded** (closes HP-032): the gap-to-proof engine's "here's how to close
+  this gap" recommendation had nothing to show for any competency before this. Seven real, free
+  resources (Microsoft Learn, GitHub's own docs, freeCodeCamp) now cover every competency used by
+  the demo opportunities.
+- **Assessor can decide on a never-claimed competency** (closes HP-033): the `CandidateCompetency`
+  row is now created if missing, rather than the decision silently having nothing to update. Covered
+  by a new integration test (seeds a candidate with zero prior evidence, submits a decision, confirms
+  the row now exists and carries it).
+- **Candidate-facing interview history** (closes HP-022): `/interviews` lists every interview a
+  candidate has taken (in progress or completed), linking to the live take-it page or the finished
+  report — previously the only way back to an interview was mid-flow, right after starting it.
+- **Recruiter/partner opportunity pages, Assessor dashboard, and the secondary account pages (Forgot/
+  Reset Password) restyled** to match the rest of the brand system — previously plain Bootstrap next
+  to an otherwise-redesigned site.
 
 ## What's real post-P18, round 6 (Electron: Monaco editor + server-authoritative timer)
 - **Server-authoritative timer** (`AssessmentSessionInfoController`, closes half of HP-026): the

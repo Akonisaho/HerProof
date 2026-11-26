@@ -16,7 +16,12 @@
     </div>
     <div class="mb-3">
         <label asp-for="AssessmentType" class="form-label"></label>
-        <input asp-for="AssessmentType" class="form-control" />
+        <select asp-for="AssessmentType" class="form-select">
+            <option value="C#">C#</option>
+            <option value="Practical">Practical (freeform)</option>
+            <option value="Other">Other</option>
+        </select>
+        <div class="form-text">Selecting C# adds two real practical questions automatically: an implement-a-feature question and a find-and-fix-the-bug question.</div>
     </div>
     <div class="mb-3">
         <label asp-for="DurationMinutes" class="form-label"></label>

@@ -68,6 +68,7 @@ public class HerProofDbContext(DbContextOptions<HerProofDbContext> options)
     public DbSet<Assessment> Assessments => Set<Assessment>();
     public DbSet<AssessmentCompetency> AssessmentCompetencies => Set<AssessmentCompetency>();
     public DbSet<RubricCriterion> RubricCriteria => Set<RubricCriterion>();
+    public DbSet<AssessmentQuestion> AssessmentQuestions => Set<AssessmentQuestion>();
     public DbSet<AssessmentSession> AssessmentSessions => Set<AssessmentSession>();
     public DbSet<IntegrityEvent> IntegrityEvents => Set<IntegrityEvent>();
     public DbSet<AssessmentSubmission> AssessmentSubmissions => Set<AssessmentSubmission>();

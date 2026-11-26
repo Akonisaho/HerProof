@@ -14,6 +14,9 @@
       #editor-container { width: 100%; height: 300px; border: 1px solid #e0e0e8; }
       #timer { font-size: 1.5rem; font-weight: bold; }
       #timer.low-time { color: #c0392b; }
+      #device-status { font-size: 0.85rem; display: flex; gap: 1rem; }
+      #device-status span { padding: 0.2rem 0.6rem; border-radius: 999px; background: #eee; color: #555; }
+      #device-status span.detected { background: #e3f6e8; color: #1e7a34; }
       button { padding: 0.5rem 1rem; cursor: pointer; }
       .hidden { display: none; }
       .panel { background: white; border: 1px solid #e0e0e8; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
@@ -36,6 +39,11 @@
       <div class="panel" style="display:flex; justify-content:space-between; align-items:center;">
         <h1>Assessment in progress</h1>
         <div id="timer">00:00</div>
+      </div>
+
+      <div class="panel" id="device-status">
+        <span id="camera-status">Camera: checking…</span>
+        <span id="microphone-status">Microphone: checking…</span>
       </div>
 
       <div class="panel">

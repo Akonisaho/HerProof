@@ -14,19 +14,20 @@
 }
 
 <h1>Interview result</h1>
+<p><a asp-action="ReportPdf" asp-route-interviewId="@Model.Id" class="btn-brand btn-sm">Download report (PDF)</a></p>
 @if (Model.IsDemoData)
 {
-    <div class="alert alert-info">Demo data — this is a pre-generated interview, shown instantly as a
+    <div class="alert alert-info">Demo data - this is a pre-generated interview, shown instantly as a
         fallback for a live demo, not something you just answered.</div>
 }
-<p>Thandi's recommendation for the assessor — code on one side, your answer on the other.</p>
+<p>Thandi's recommendation for the assessor - code on one side, your answer on the other.</p>
 
 @foreach (var question in Model.Questions.OrderBy(q => q.QuestionOrder))
 {
     var finalTurn = question.Turns.OrderBy(t => t.TurnIndex).LastOrDefault(t => t.Evaluation is not null);
     <div class="card mb-3">
         <div class="card-body">
-            <h2 class="h5">@competencyNames.GetValueOrDefault(question.CompetencyId, "Unknown") — @question.QuestionText</h2>
+            <h2 class="h5">@competencyNames.GetValueOrDefault(question.CompetencyId, "Unknown") - @question.QuestionText</h2>
             @if (!string.IsNullOrEmpty(question.SnippetFilePath))
             {
                 <p class="small text-muted"><code>@question.SnippetFilePath</code> lines @question.SnippetLines</p>

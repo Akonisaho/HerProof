@@ -9,6 +9,11 @@ public interface IGitHubClient
 {
     Task<string> ResolveBranchToCommitShaAsync(string owner, string repo, string branch, CancellationToken cancellationToken = default);
 
+    /// <summary>The repo's actual default branch (e.g. "master" for older repos, not necessarily
+    /// "main") — lets callers recover when a candidate submits a repo without knowing/changing the
+    /// branch field from its "main" placeholder.</summary>
+    Task<string> GetDefaultBranchAsync(string owner, string repo, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<GitHubTreeEntry>> GetTreeAsync(string owner, string repo, string commitSha, CancellationToken cancellationToken = default);
 
     Task<string> GetFileContentAsync(string owner, string repo, string commitSha, string path, CancellationToken cancellationToken = default);
@@ -27,4 +32,13 @@ public class GitHubRateLimitException(TimeSpan retryAfter) : Exception($"GitHub 
 
 public class GitHubNotFoundException(string owner, string repo) : Exception($"Repository {owner}/{repo} was not found or is not accessible.")
 {
+}
+
+/// <summary>HP-019, closed: any non-404/non-rate-limit GitHub API error (e.g. a 422 for an invalid
+/// branch name) previously fell through to `response.EnsureSuccessStatusCode()`, surfacing as an
+/// unhandled 500 to the candidate instead of a plain-language message.</summary>
+public class GitHubApiException(System.Net.HttpStatusCode statusCode, string? reason)
+    : Exception($"GitHub returned {(int)statusCode} {statusCode}{(string.IsNullOrWhiteSpace(reason) ? "" : $": {reason}")}")
+{
+    public System.Net.HttpStatusCode StatusCode { get; } = statusCode;
 }

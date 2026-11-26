@@ -23,4 +23,21 @@ public class RepositoryContentFetcher(IGitHubClient gitHubClient)
 
         return new FetchedRepositoryContent(commitSha, files);
     }
+
+    /// <summary>Fetches only the given paths — one GitHub API call per file, no tree listing at all.
+    /// Used when starting an interview: the repository's already-stored findings already name exactly
+    /// which files matter, so there is no reason to re-fetch and re-select from the whole repo again
+    /// (the original P08 analysis pass already did that broad work once). Cuts a ~40-call, 90-second
+    /// interview start down to a handful of calls for the files actually being asked about.</summary>
+    public async Task<FetchedRepositoryContent> FetchSelectedAsync(string owner, string repo, string commitSha, IReadOnlyList<string> paths, CancellationToken cancellationToken = default)
+    {
+        var files = new List<FetchedRepositoryFile>(paths.Count);
+        foreach (var path in paths.Distinct())
+        {
+            var content = await gitHubClient.GetFileContentAsync(owner, repo, commitSha, path, cancellationToken);
+            files.Add(new FetchedRepositoryFile(path, content));
+        }
+
+        return new FetchedRepositoryContent(commitSha, files);
+    }
 }

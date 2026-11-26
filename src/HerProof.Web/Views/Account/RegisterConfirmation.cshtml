@@ -2,5 +2,17 @@
     ViewData["Title"] = "Check your email";
 }
 
-<h1>Check your email</h1>
-<p>We've sent a confirmation link to your email address. Confirm it before signing in.</p>
+<div class="auth-wrap">
+    <div class="auth-card">
+        <h1>Check your email</h1>
+        <p class="auth-subtitle @(ViewBag.DevConfirmLink is null ? "mb-0" : "")">We've sent a confirmation link to your email address. Confirm it before signing in.</p>
+        @if (ViewBag.DevConfirmLink is string devLink)
+        {
+            <div class="dev-link-box mb-0">
+                <p class="dev-link-label">Dev mode - no real email provider is configured yet.</p>
+                <a href="@devLink" class="btn-brand">Confirm email</a>
+                <p class="dev-link-hint mb-0">If the button doesn't open, paste this link into your browser:<br /><span class="text-break">@devLink</span></p>
+            </div>
+        }
+    </div>
+</div>

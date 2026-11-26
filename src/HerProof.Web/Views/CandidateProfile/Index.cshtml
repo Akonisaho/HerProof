@@ -4,7 +4,14 @@
 }
 
 <h1>Your profile</h1>
-<p><a asp-action="Edit" asp-route-candidateProfileId="@Model.Id" class="btn btn-primary btn-sm">Edit profile</a></p>
+@if (Context.Request.Query["incomplete"] == "1" && !Model.IsComplete)
+{
+    <div class="dev-link-box mb-3">
+        <p class="dev-link-label mb-0">Complete your profile to continue</p>
+        <p class="mb-0">Province, education level and career interests are needed before you can browse opportunities, submit a repository, or take an assessment or interview.</p>
+    </div>
+}
+<p><a asp-action="Edit" asp-route-candidateProfileId="@Model.Id" class="btn-brand btn-sm">Edit profile</a></p>
 <dl>
     <dt>Province</dt>
     <dd>@(Model.Province ?? "Not set")</dd>
@@ -21,7 +28,25 @@
     <dt>Career interests</dt>
     <dd>@(Model.CareerInterests ?? "Not set")</dd>
     <dt>GitHub profile</dt>
-    <dd>@(Model.GitHubProfile ?? "Not set")</dd>
+    <dd>
+        @if (!string.IsNullOrWhiteSpace(Model.GitHubProfile))
+        {
+            <a href="@Model.GitHubProfile" target="_blank" rel="noopener">@Model.GitHubProfile</a>
+        }
+        else
+        {
+            <text>Not set</text>
+        }
+    </dd>
     <dt>LinkedIn profile</dt>
-    <dd>@(Model.LinkedInProfile ?? "Not set")</dd>
+    <dd>
+        @if (!string.IsNullOrWhiteSpace(Model.LinkedInProfile))
+        {
+            <a href="@Model.LinkedInProfile" target="_blank" rel="noopener">@Model.LinkedInProfile</a>
+        }
+        else
+        {
+            <text>Not set</text>
+        }
+    </dd>
 </dl>

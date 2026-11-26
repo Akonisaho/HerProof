@@ -1,23 +1,59 @@
 @model IReadOnlyList<HerProof.Domain.Competencies.CandidateCompetency>
 @{
-    ViewData["Title"] = "Assessor dashboard";
+    ViewData["Title"] = "Assessor inbox";
     var candidateNames = (IReadOnlyDictionary<Guid, string>)ViewBag.CandidateNames;
     var competencyNames = (IReadOnlyDictionary<Guid, string>)ViewBag.CompetencyNames;
+    var unreadKeys = (HashSet<string>)ViewBag.UnreadKeys;
+    int unreadCount = ViewBag.UnreadCount;
 }
 
-<h1>Pending review</h1>
-<table class="table">
-    <thead><tr><th>Candidate</th><th>Competency</th><th>Status</th><th>Updated</th><th></th></tr></thead>
-    <tbody>
-        @foreach (var cc in Model)
-        {
-            <tr>
-                <td>@candidateNames.GetValueOrDefault(cc.CandidateId, "(unknown)")</td>
-                <td>@competencyNames.GetValueOrDefault(cc.CompetencyId, "(unknown)")</td>
-                <td>@cc.Status</td>
-                <td>@cc.UpdatedAtUtc.ToString("u")</td>
-                <td><a asp-action="EvidencePack" asp-route-candidateId="@cc.CandidateId" asp-route-competencyId="@cc.CompetencyId">Review</a></td>
-            </tr>
-        }
-    </tbody>
-</table>
+<div class="hero-wrap">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">Assessor inbox</span>
+        <h1>
+            Pending review
+            @if (unreadCount > 0)
+            {
+                <span class="inbox-unread-badge">@unreadCount new</span>
+            }
+        </h1>
+        <p class="lead lead-full mb-0">No email, no polling required - a candidate submitting evidence or completing an assessment lands here immediately, and stays marked "new" until you open it.</p>
+    </div>
+</div>
+
+<section class="brand-section">
+    @if (Model.Count == 0)
+    {
+        <div class="brand-card">
+            <p class="mb-0 text-muted">Nothing pending review right now.</p>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2">
+            @foreach (var cc in Model)
+            {
+                var isUnread = unreadKeys.Contains($"{cc.CandidateId}:{cc.CompetencyId}");
+                <a asp-action="EvidencePack" asp-route-candidateId="@cc.CandidateId" asp-route-competencyId="@cc.CompetencyId"
+                   class="opportunity-card brand-card d-flex justify-content-between align-items-center flex-wrap gap-2 @(isUnread ? "inbox-item-unread" : "")">
+                    <div class="d-flex align-items-center gap-2">
+                        @if (isUnread)
+                        {
+                            <span class="inbox-dot" aria-hidden="true"></span>
+                        }
+                        <div>
+                            <strong>@candidateNames.GetValueOrDefault(cc.CandidateId, "(unknown)")</strong>
+                            <span class="opportunity-org d-block">@competencyNames.GetValueOrDefault(cc.CompetencyId, "(unknown)")</span>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <span class="device-pill">@cc.Status</span>
+                        <span class="d-block text-muted small mt-1">Updated @cc.UpdatedAtUtc.ToString("yyyy-MM-dd")</span>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</section>

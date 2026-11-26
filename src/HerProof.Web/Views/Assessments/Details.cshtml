@@ -20,7 +20,7 @@
 <ul>
     @foreach (var c in Model.Competencies)
     {
-        <li>@competencyNames.GetValueOrDefault(c.CompetencyId, "(unknown)") — weight @c.Weight</li>
+        <li>@competencyNames.GetValueOrDefault(c.CompetencyId, "(unknown)") - weight @c.Weight</li>
     }
 </ul>
 <form asp-action="AddCompetency" asp-route-assessmentId="@Model.Id" method="post" class="row g-2 align-items-end mb-4">
@@ -46,7 +46,7 @@
 <ul>
     @foreach (var r in Model.RubricCriteria)
     {
-        <li><strong>@r.Name</strong> (weight @r.Weight) — @r.Descriptor</li>
+        <li><strong>@r.Name</strong> (weight @r.Weight) - @r.Descriptor</li>
     }
 </ul>
 <form asp-action="AddRubricCriterion" asp-route-assessmentId="@Model.Id" method="post" class="row g-2 align-items-end">

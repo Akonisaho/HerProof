@@ -25,14 +25,19 @@ namespace HerProof.Web.Controllers;
 [Route("assessor")]
 public class AssessorDashboardController(HerProofDbContext db, IAuditLogger auditLogger) : Controller
 {
+    /// <summary>docs/STUBS.md: no email provider the demo can rely on, so "a candidate submitted
+    /// evidence, go look" lives here instead of in an inbox — this list IS the inbox. An item counts
+    /// as read once this assessor has opened its evidence pack since it last changed (tracked via the
+    /// audit log, so no schema change was needed); unread items sort first.</summary>
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        var assessorId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
         var pending = await db.CandidateCompetencies.AsNoTracking()
             .Where(cc => cc.Status == CandidateCompetencyStatus.EvidenceSubmitted
                 || cc.Status == CandidateCompetencyStatus.UnderAssessment
                 || cc.Status == CandidateCompetencyStatus.AssessmentCompleted)
-            .OrderByDescending(cc => cc.UpdatedAtUtc)
             .ToListAsync(cancellationToken);
 
         var candidateIds = pending.Select(p => p.CandidateId).Distinct().ToList();
@@ -46,7 +51,31 @@ public class AssessorDashboardController(HerProofDbContext db, IAuditLogger audi
             .Where(c => competencyIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => c.Name, cancellationToken);
 
-        return View(pending);
+        var viewedLog = await db.AuditLog.AsNoTracking()
+            .Where(a => a.ActorUserId == assessorId && a.Action == "EvidencePackViewed" && candidateIds.Contains(a.EntityId))
+            .ToListAsync(cancellationToken);
+
+        var unreadKeys = new HashSet<string>();
+        foreach (var cc in pending)
+        {
+            var wasViewedSinceUpdate = viewedLog.Any(a => a.EntityId == cc.CandidateId
+                && a.DetailJson.Contains(cc.CompetencyId.ToString())
+                && a.AtUtc >= cc.UpdatedAtUtc);
+            if (!wasViewedSinceUpdate)
+            {
+                unreadKeys.Add($"{cc.CandidateId}:{cc.CompetencyId}");
+            }
+        }
+
+        ViewBag.UnreadKeys = unreadKeys;
+        ViewBag.UnreadCount = unreadKeys.Count;
+
+        var ordered = pending
+            .OrderByDescending(cc => unreadKeys.Contains($"{cc.CandidateId}:{cc.CompetencyId}"))
+            .ThenByDescending(cc => cc.UpdatedAtUtc)
+            .ToList();
+
+        return View(ordered);
     }
 
     [HttpGet("candidates/{candidateId:guid}/competencies/{competencyId:guid}")]
@@ -147,6 +176,11 @@ public class AssessorDashboardController(HerProofDbContext db, IAuditLogger audi
             .Where(r => candidateAnalyses.Any(a => a.RepositoryId == r.Id))
             .Select(r => r.ContributorStatus)
             .ToList();
+
+        var assessorId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await auditLogger.LogAsync(assessorId, "EvidencePackViewed", "CandidateCompetency", candidateId,
+            JsonSerializer.Serialize(new { competencyId }), cancellationToken);
+
         return View(viewModel);
     }
 
@@ -170,13 +204,24 @@ public class AssessorDashboardController(HerProofDbContext db, IAuditLogger audi
 
         var candidateCompetency = await db.CandidateCompetencies
             .FirstOrDefaultAsync(cc => cc.CandidateId == candidateId && cc.CompetencyId == competencyId, cancellationToken);
+        if (candidateCompetency is null)
+        {
+            // HP-033, closed: a decision could previously be submitted for a competency the
+            // candidate never claimed (no row yet) by visiting the URL directly — the
+            // VerificationRecord above was still created (append-only, correct), but the decision
+            // had nothing to update, so it silently never reached the candidate's own competency
+            // status. Create the row now rather than losing the decision.
+            candidateCompetency = new CandidateCompetency(candidateId, competencyId, declaredLevel: null, DateTime.UtcNow);
+            db.Add(candidateCompetency);
+        }
+
         var domainStatus = model.Decision switch
         {
             VerificationDecision.Verified => CandidateCompetencyStatus.Verified,
             VerificationDecision.Developing => CandidateCompetencyStatus.Developing,
             _ => CandidateCompetencyStatus.NotDemonstrated,
         };
-        candidateCompetency?.ApplyAssessorDecision(domainStatus, model.FinalLevel, DateTime.UtcNow);
+        candidateCompetency.ApplyAssessorDecision(domainStatus, model.FinalLevel, DateTime.UtcNow);
 
         if (model.Decision == VerificationDecision.Verified)
         {

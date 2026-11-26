@@ -29,6 +29,10 @@
 {
     <div class="alert alert-info">@analysisMessage</div>
 }
+@if (TempData["InterviewMessage"] is string interviewMessage)
+{
+    <div class="alert alert-warning">@interviewMessage</div>
+}
 
 <table class="table">
     <thead><tr><th>Repository</th><th>Branch</th><th>Commit</th><th>Submitted</th><th>Analysis</th></tr></thead>
@@ -46,10 +50,20 @@
                 <td>@repo.Branch</td>
                 <td><code>@repo.CommitSha[..Math.Min(7, repo.CommitSha.Length)]</code></td>
                 <td>@repo.SubmittedAtUtc.ToString("u")</td>
-                <td>
+                <td class="repo-status-cell" data-repository-id="@repo.Id">
                     @if (latestByRepository.TryGetValue(repo.Id, out var analysis))
                     {
-                        <span class="@StatusBadgeClass(analysis.Status)">@analysis.Status</span>
+                        var isPending = analysis.Status is RepositoryAnalysisStatus.Pending or RepositoryAnalysisStatus.InProgress;
+                        <span class="repo-status-badge @(isPending ? "d-none" : "")">
+                            <span class="@StatusBadgeClass(analysis.Status)">@analysis.Status</span>
+                        </span>
+                        @if (isPending)
+                        {
+                            <span class="repo-status-spinner d-inline-flex align-items-center gap-2">
+                                <span class="spinner-border spinner-border-sm text-muted" role="status" aria-hidden="true"></span>
+                                <span class="text-muted small">Analysing...</span>
+                            </span>
+                        }
                         @if (analysis.IsDemoData)
                         {
                             <span class="badge bg-info text-dark">Demo data</span>
@@ -59,6 +73,10 @@
                             <div class="small text-muted">
                                 @analysis.Summary (@analysis.Findings.Count finding(s), model: @analysis.ModelVersion)
                             </div>
+                            <form asp-controller="Interview" asp-action="Consent" method="get" class="mt-2">
+                                <input type="hidden" name="repositoryId" value="@repo.Id" />
+                                <button type="submit" class="btn btn-sm btn-primary">Prove your skills with Thandi</button>
+                            </form>
                             @if (opportunities.Count > 0)
                             {
                                 <form asp-controller="Interview" asp-action="Consent" method="get" class="mt-1 d-flex gap-1">
@@ -69,7 +87,7 @@
                                         }
                                     </select>
                                     <input type="hidden" name="repositoryId" value="@repo.Id" />
-                                    <button type="submit" class="btn btn-sm btn-primary">Start interview with Thandi</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">...for a specific opportunity</button>
                                 </form>
                             }
                         }
@@ -79,3 +97,7 @@
         }
     </tbody>
 </table>
+
+@section Scripts {
+    <script src="~/js/repositories-poll.js" asp-append-version="true"></script>
+}

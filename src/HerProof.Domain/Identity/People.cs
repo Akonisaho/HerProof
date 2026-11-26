@@ -47,6 +47,15 @@ public class CandidateProfile : Entity
         UserId = userId;
     }
 
+    /// <summary>Gates browsing/applying (docs/05): the three fields that matter for every candidate
+    /// regardless of opportunity type. Deliberately excludes the bursary-only optional fields
+    /// (GenderDeclared, HouseholdIncomeBand, FieldOfStudy, DateOfBirth) and the social links, which
+    /// stay genuinely optional.</summary>
+    public bool IsComplete =>
+        !string.IsNullOrWhiteSpace(Province)
+        && !string.IsNullOrWhiteSpace(EducationLevel)
+        && !string.IsNullOrWhiteSpace(CareerInterests);
+
     public void UpdateProfile(
         string? province,
         string? educationLevel,

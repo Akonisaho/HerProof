@@ -20,7 +20,7 @@
 {
     var verifyUrl = Url.Action("Show", "PassportVerification", new { token = shareToken }, Context.Request.Scheme);
     <div class="alert alert-success">
-        <strong>Share link created.</strong> This is the only time the full link is shown — save it now.<br />
+        <strong>Share link created.</strong> This is the only time the full link is shown - save it now.<br />
         <code>@verifyUrl</code><br />
         <img src="@Url.Action("ShareQrCode", "Passport", new { shareId, token = shareToken })" alt="QR code for this share" width="160" height="160" />
     </div>
@@ -42,10 +42,10 @@ else
         @foreach (var (credential, competencyName) in Model.VerifiedCredentials)
         {
             <li>
-                <strong>@competencyName</strong> — <code>@credential.CredentialIdentifier</code>
-                — issued @credential.IssuedAtUtc.ToString("yyyy-MM-dd")
+                <strong>@competencyName</strong> - <code>@credential.CredentialIdentifier</code>
+ - issued @credential.IssuedAtUtc.ToString("yyyy-MM-dd")
                 @(credential.ValidUntilUtc is not null ? $"(valid until {credential.ValidUntilUtc:yyyy-MM-dd})" : "")
-                — @credential.CredentialStatus
+ - @credential.CredentialStatus
             </li>
         }
     </ul>
@@ -61,7 +61,7 @@ else
     <ul>
         @foreach (var (cc, competencyName) in Model.UnverifiedCompetencies)
         {
-            <li>@competencyName — <em>@cc.Status</em> (not verified)</li>
+            <li>@competencyName - <em>@cc.Status</em> (not verified)</li>
         }
     </ul>
 }
@@ -100,8 +100,8 @@ else
         @foreach (var share in Model.ActiveShares)
         {
             <li>
-                Created @share.CreatedAtUtc.ToString("yyyy-MM-dd") — exposes @share.VisibleFields.Count credential(s)
-                @(share.ExpiresAtUtc is not null ? $"— expires {share.ExpiresAtUtc:yyyy-MM-dd}" : "")
+                Created @share.CreatedAtUtc.ToString("yyyy-MM-dd") - exposes @share.VisibleFields.Count credential(s)
+                @(share.ExpiresAtUtc is not null ? $" - expires {share.ExpiresAtUtc:yyyy-MM-dd}" : "")
                 <form asp-action="RevokeShare" asp-route-shareId="@share.Id" method="post" class="d-inline">
                     <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
                 </form>
@@ -116,7 +116,7 @@ else
     <ul>
         @foreach (var share in Model.RevokedOrExpiredShares)
         {
-            <li>Created @share.CreatedAtUtc.ToString("yyyy-MM-dd") — @(share.IsRevoked ? "revoked" : "expired")</li>
+            <li>Created @share.CreatedAtUtc.ToString("yyyy-MM-dd") - @(share.IsRevoked ? "revoked" : "expired")</li>
         }
     </ul>
 }

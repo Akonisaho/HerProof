@@ -3,16 +3,20 @@ using HerProof.AI;
 using HerProof.Application.Interviews;
 using HerProof.Application.Repositories;
 using HerProof.Application.Speech;
+using HerProof.Domain.Competencies;
 using HerProof.Domain.Consent;
 using HerProof.Domain.Identity;
 using HerProof.Domain.Interviews;
+using HerProof.Domain.Opportunities;
 using HerProof.Domain.Repositories;
 using HerProof.Infrastructure.Persistence;
+using HerProof.Web.Filters;
 using HerProof.Web.Models.Interviews;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace HerProof.Web.Controllers;
 
@@ -23,18 +27,45 @@ namespace HerProof.Web.Controllers;
 [Authorize(Roles = nameof(UserRole.Candidate))]
 [Route("interviews")]
 [EnableRateLimiting("interview")]
+[TypeFilter(typeof(RequireCompleteCandidateProfileFilter))]
 public class InterviewController(
     HerProofDbContext db,
     RepositoryContentFetcher contentFetcher,
     ThandiInterviewEngine thandiEngine,
     ISpeechToText speechToText,
-    ITextToSpeech textToSpeech) : Controller
+    ITextToSpeech textToSpeech,
+    ILogger<InterviewController> logger) : Controller
 {
     private const string VoiceConsentPurpose = "voice-interview";
     private const string VoiceConsentVersion = "1.0";
 
+    /// <summary>HP-022, closed: previously a completed/in-progress interview was only reachable from
+    /// the repositories page's "Start interview" form right after creating it — there was nowhere to
+    /// come back and find it again.</summary>
+    [HttpGet("")]
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    {
+        var candidateId = await GetCandidateProfileIdAsync(cancellationToken);
+        if (candidateId is null)
+        {
+            return View(Array.Empty<Interview>());
+        }
+
+        var interviews = await db.Interviews.AsNoTracking()
+            .Where(i => i.CandidateId == candidateId)
+            .OrderByDescending(i => i.StartedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var opportunityIds = interviews.Where(i => i.OpportunityId is not null).Select(i => i.OpportunityId!.Value).Distinct().ToList();
+        ViewBag.OpportunityTitles = await db.Opportunities.AsNoTracking()
+            .Where(o => opportunityIds.Contains(o.Id))
+            .ToDictionaryAsync(o => o.Id, o => o.Title, cancellationToken);
+
+        return View(interviews);
+    }
+
     [HttpGet("consent")]
-    public IActionResult Consent(Guid repositoryId, Guid opportunityId) =>
+    public IActionResult Consent(Guid repositoryId, Guid? opportunityId) =>
         View(new VoiceConsentViewModel { RepositoryId = repositoryId, OpportunityId = opportunityId });
 
     [HttpPost("consent")]
@@ -54,10 +85,10 @@ public class InterviewController(
 
     [HttpPost("start")]
     [ValidateAntiForgeryToken]
-    public Task<IActionResult> Start(Guid repositoryId, Guid opportunityId, CancellationToken cancellationToken) =>
+    public Task<IActionResult> Start(Guid repositoryId, Guid? opportunityId, CancellationToken cancellationToken) =>
         StartInterviewAsync(repositoryId, opportunityId, InterviewMode.Text, cancellationToken);
 
-    private async Task<IActionResult> StartInterviewAsync(Guid repositoryId, Guid opportunityId, InterviewMode mode, CancellationToken cancellationToken)
+    private async Task<IActionResult> StartInterviewAsync(Guid repositoryId, Guid? opportunityId, InterviewMode mode, CancellationToken cancellationToken)
     {
         var candidateId = await GetCandidateProfileIdAsync(cancellationToken);
         if (candidateId is null)
@@ -67,12 +98,21 @@ public class InterviewController(
 
         var repository = await db.Repositories.AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == repositoryId && r.CandidateId == candidateId, cancellationToken);
-        var opportunity = await db.Opportunities.AsNoTracking()
-            .Include(o => o.RequiredCompetencies)
-            .FirstOrDefaultAsync(o => o.Id == opportunityId, cancellationToken);
-        if (repository is null || opportunity is null)
+        if (repository is null)
         {
             return NotFound();
+        }
+
+        Opportunity? opportunity = null;
+        if (opportunityId is not null)
+        {
+            opportunity = await db.Opportunities.AsNoTracking()
+                .Include(o => o.RequiredCompetencies)
+                .FirstOrDefaultAsync(o => o.Id == opportunityId, cancellationToken);
+            if (opportunity is null)
+            {
+                return NotFound();
+            }
         }
 
         var persistedFindings = await db.RepositoryFindings.AsNoTracking()
@@ -88,10 +128,18 @@ public class InterviewController(
             .Select(f => new StaticFinding(competencyNames.GetValueOrDefault(f.CompetencyId, "Unknown"), f.FindingType, f.FilePath, f.LineReference, f.Description, f.Evidence))
             .ToList();
 
-        var requiredCompetencyNames = opportunity.RequiredCompetencies
-            .Select(rc => competencyNames.GetValueOrDefault(rc.CompetencyId, "Unknown"))
-            .Distinct()
-            .ToList();
+        // No opportunity: prove whatever the repository itself demonstrates (docs/05 — evidence
+        // before verification shouldn't require a posting to exist first), driven by the repo's own
+        // detected competencies rather than one opportunity's required list.
+        var requiredCompetencyNames = opportunity is not null
+            ? opportunity.RequiredCompetencies
+                .Select(rc => competencyNames.GetValueOrDefault(rc.CompetencyId, "Unknown"))
+                .Distinct()
+                .ToList()
+            : persistedFindings
+                .Select(f => competencyNames.GetValueOrDefault(f.CompetencyId, "Unknown"))
+                .Distinct()
+                .ToList();
 
         var parsed = GitHubRepositoryUrlParser.TryParse(repository.RepositoryUrl);
         if (parsed is null)
@@ -99,10 +147,18 @@ public class InterviewController(
             return BadRequest("Repository URL could not be parsed.");
         }
 
+        // Only the files the already-stored findings actually reference — the broad tree-wide fetch
+        // belongs to the original P08 analysis pass, not to starting an interview on top of it (that
+        // was re-fetching and re-selecting from the whole repo every time, ~40+ GitHub calls and up to
+        // 90s for a modest repo).
+        var findingPaths = persistedFindings.Select(f => f.FilePath).Distinct().ToList();
+
         FetchedRepositoryContent content;
         try
         {
-            content = await contentFetcher.FetchAsync(parsed.Value.Owner, parsed.Value.Repo, repository.CommitSha, cancellationToken);
+            content = findingPaths.Count > 0
+                ? await contentFetcher.FetchSelectedAsync(parsed.Value.Owner, parsed.Value.Repo, repository.CommitSha, findingPaths, cancellationToken)
+                : await contentFetcher.FetchAsync(parsed.Value.Owner, parsed.Value.Repo, repository.CommitSha, cancellationToken);
         }
         catch (GitHubRateLimitException ex)
         {
@@ -112,6 +168,19 @@ public class InterviewController(
         catch (GitHubNotFoundException)
         {
             TempData["InterviewMessage"] = "That repository could not be re-fetched from GitHub right now.";
+            return RedirectToAction(nameof(RepositoriesController.Index), "Repositories");
+        }
+        catch (GitHubApiException)
+        {
+            TempData["InterviewMessage"] = "GitHub couldn't process that request right now. Please try again shortly.";
+            return RedirectToAction(nameof(RepositoriesController.Index), "Repositories");
+        }
+        catch (Exception ex) when (ex is TaskCanceledException or TimeoutException or HttpRequestException)
+        {
+            // A plain network timeout/drop isn't any of the typed GitHub exceptions above, but it's
+            // just as transient — never let it surface as an unhandled 500 to the candidate.
+            logger.LogWarning(ex, "Transient network failure fetching repository content for interview start.");
+            TempData["InterviewMessage"] = "GitHub didn't respond in time. Please try again in a moment.";
             return RedirectToAction(nameof(RepositoriesController.Index), "Repositories");
         }
 
@@ -162,6 +231,7 @@ public class InterviewController(
         if (active is null)
         {
             interview.Complete(DateTime.UtcNow);
+            await EnsureEvidenceSubmittedAsync(interview, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
             return RedirectToAction(nameof(Report), new { interviewId });
         }
@@ -221,6 +291,13 @@ public class InterviewController(
             // Never lose the candidate's answer on a transient GitHub problem: it's already recorded
             // above. Let her retry the evaluation step shortly.
             TempData["InterviewMessage"] = $"GitHub is rate-limiting us right now. Your answer was saved — try again in about {ex.RetryAfter.TotalMinutes:F0} minute(s).";
+            await db.SaveChangesAsync(cancellationToken);
+            return RedirectToAction(nameof(Take), new { interviewId });
+        }
+        catch (Exception ex) when (ex is GitHubNotFoundException or GitHubApiException)
+        {
+            // Same reasoning as the rate-limit case above: the candidate's answer is already saved.
+            TempData["InterviewMessage"] = "GitHub couldn't be reached to continue the interview. Your answer was saved — try again shortly.";
             await db.SaveChangesAsync(cancellationToken);
             return RedirectToAction(nameof(Take), new { interviewId });
         }
@@ -363,6 +440,22 @@ public class InterviewController(
         return View(interview);
     }
 
+    [HttpGet("{interviewId:guid}/report.pdf")]
+    public async Task<IActionResult> ReportPdf(Guid interviewId, CancellationToken cancellationToken)
+    {
+        var candidateId = await GetCandidateProfileIdAsync(cancellationToken);
+        var interview = await LoadInterviewAsync(interviewId, candidateId, cancellationToken);
+        if (interview is null)
+        {
+            return NotFound();
+        }
+
+        var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!), cancellationToken);
+        var competencyNames = await db.Competencies.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Name, cancellationToken);
+        var pdfBytes = InterviewReportPdfExporter.Export(user.FullName, interview, competencyNames);
+        return File(pdfBytes, "application/pdf", $"interview-report-{interview.StartedAtUtc:yyyy-MM-dd}.pdf");
+    }
+
     private static (InterviewQuestion Question, InterviewTurn? Turn)? FindActiveQuestionAndTurn(Interview interview, out bool isNewQuestion)
     {
         foreach (var question in interview.Questions.OrderBy(q => q.QuestionOrder))
@@ -414,6 +507,30 @@ public class InterviewController(
         }
 
         return parts.Count > 0 ? string.Join(' ', parts) : "No specific evidence recorded.";
+    }
+
+    /// <summary>The missing link that makes "evidence before verification" actually reachable: until
+    /// this ran, finishing an interview left no CandidateCompetency row behind at all, so a candidate
+    /// could complete a full interview and still never appear in the Assessor inbox (AssessorDashboard
+    /// only lists EvidenceSubmitted/UnderAssessment/AssessmentCompleted rows). One row per competency
+    /// the interview actually covered, evidenced by this interview's id.</summary>
+    private async Task EnsureEvidenceSubmittedAsync(Interview interview, CancellationToken cancellationToken)
+    {
+        var competencyIds = interview.Questions.Select(q => q.CompetencyId).Distinct().ToList();
+        var existing = await db.CandidateCompetencies
+            .Where(cc => cc.CandidateId == interview.CandidateId && competencyIds.Contains(cc.CompetencyId))
+            .ToDictionaryAsync(cc => cc.CompetencyId, cancellationToken);
+
+        foreach (var competencyId in competencyIds)
+        {
+            if (!existing.TryGetValue(competencyId, out var candidateCompetency))
+            {
+                candidateCompetency = new CandidateCompetency(interview.CandidateId, competencyId, declaredLevel: null, DateTime.UtcNow);
+                db.CandidateCompetencies.Add(candidateCompetency);
+            }
+
+            candidateCompetency.AddEvidence("Interview", interview.Id.ToString(), $"Thandi interview completed {DateTime.UtcNow:u}.", DateTime.UtcNow);
+        }
     }
 
     private async Task<Interview?> LoadInterviewAsync(Guid interviewId, Guid? candidateId, CancellationToken cancellationToken)

@@ -98,6 +98,59 @@ namespace HerProof.Infrastructure.Migrations
                     b.ToTable("assessment_competencies", (string)null);
                 });
 
+            modelBuilder.Entity("HerProof.Domain.Assessments.AssessmentQuestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AssessmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assessment_id");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("file_name");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<string>("Prompt")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("prompt");
+
+                    b.Property<string>("QuestionType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("question_type");
+
+                    b.Property<string>("StarterCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("starter_code");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("pk_assessment_questions");
+
+                    b.HasIndex("AssessmentId")
+                        .HasDatabaseName("ix_assessment_questions_assessment_id");
+
+                    b.ToTable("assessment_questions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_assessment_question_question_type_enum", "\"question_type\" IN ('Implement', 'FixBug')");
+                        });
+                });
+
             modelBuilder.Entity("HerProof.Domain.Assessments.AssessmentReview", b =>
                 {
                     b.Property<Guid>("Id")
@@ -961,7 +1014,7 @@ namespace HerProof.Infrastructure.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("mode");
 
-                    b.Property<Guid>("OpportunityId")
+                    b.Property<Guid?>("OpportunityId")
                         .HasColumnType("uuid")
                         .HasColumnName("opportunity_id");
 
@@ -984,9 +1037,6 @@ namespace HerProof.Infrastructure.Migrations
 
                     b.HasIndex("CandidateId")
                         .HasDatabaseName("ix_interviews_candidate_id");
-
-                    b.HasIndex("OpportunityId")
-                        .HasDatabaseName("ix_interviews_opportunity_id");
 
                     b.HasIndex("RepositoryId")
                         .HasDatabaseName("ix_interviews_repository_id");
@@ -1271,6 +1321,10 @@ namespace HerProof.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
+                    b.Property<int?>("ExperienceYearsRequired")
+                        .HasColumnType("integer")
+                        .HasColumnName("experience_years_required");
+
                     b.Property<string>("Location")
                         .HasColumnType("text")
                         .HasColumnName("location");
@@ -1284,6 +1338,14 @@ namespace HerProof.Infrastructure.Migrations
                     b.Property<Guid>("OrganisationId")
                         .HasColumnType("uuid")
                         .HasColumnName("organisation_id");
+
+                    b.Property<decimal?>("SalaryMax")
+                        .HasColumnType("numeric")
+                        .HasColumnName("salary_max");
+
+                    b.Property<decimal?>("SalaryMin")
+                        .HasColumnType("numeric")
+                        .HasColumnName("salary_min");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -2163,6 +2225,16 @@ namespace HerProof.Infrastructure.Migrations
                         .HasConstraintName("fk_assessment_competencies_assessments_assessment_id");
                 });
 
+            modelBuilder.Entity("HerProof.Domain.Assessments.AssessmentQuestion", b =>
+                {
+                    b.HasOne("HerProof.Domain.Assessments.Assessment", null)
+                        .WithMany("Questions")
+                        .HasForeignKey("AssessmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_assessment_questions_assessments_assessment_id");
+                });
+
             modelBuilder.Entity("HerProof.Domain.Assessments.AssessmentSession", b =>
                 {
                     b.HasOne("HerProof.Domain.Assessments.AssessmentSubmission", "Submission")
@@ -2370,6 +2442,8 @@ namespace HerProof.Infrastructure.Migrations
             modelBuilder.Entity("HerProof.Domain.Assessments.Assessment", b =>
                 {
                     b.Navigation("Competencies");
+
+                    b.Navigation("Questions");
 
                     b.Navigation("RubricCriteria");
                 });

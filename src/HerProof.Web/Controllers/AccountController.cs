@@ -4,6 +4,7 @@ using HerProof.Application.Audit;
 using HerProof.Application.Notifications;
 using HerProof.Domain.Identity;
 using HerProof.Infrastructure.Identity;
+using HerProof.Infrastructure.Notifications;
 using HerProof.Infrastructure.Persistence;
 using HerProof.Web.Models.Account;
 using Microsoft.AspNetCore.Authorization;
@@ -24,7 +25,8 @@ public class AccountController(
     SignInManager<ApplicationUser> signInManager,
     HerProofDbContext db,
     IEmailSender emailSender,
-    IAuditLogger auditLogger) : Controller
+    IAuditLogger auditLogger,
+    IWebHostEnvironment environment) : Controller
 {
     [HttpGet("register")]
     [AllowAnonymous]
@@ -68,7 +70,18 @@ public class AccountController(
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
         var confirmLink = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, code }, Request.Scheme)!;
         await emailSender.SendAsync(model.Email, "Confirm your HerProof account",
-            $"Confirm your account by <a href=\"{HtmlEncoder.Default.Encode(confirmLink)}\">clicking here</a>.");
+            EmailTemplate.WithButton(
+                "Confirm your account",
+                $"<p>Hi {HtmlEncoder.Default.Encode(model.FullName)},</p><p>One click and you're in — confirm your email to activate your HerProof account.</p>",
+                "Confirm email",
+                HtmlEncoder.Default.Encode(confirmLink)));
+
+        // Dev/demo only: local SMTP (Mailpit) and free-tier email providers aren't reliable enough to
+        // gate a hackathon rehearsal on, so the link is also shown on screen — never in Production.
+        if (environment.IsDevelopment())
+        {
+            ViewBag.DevConfirmLink = confirmLink;
+        }
 
         return View("RegisterConfirmation");
     }
@@ -172,7 +185,16 @@ public class AccountController(
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
             var resetLink = Url.Action("ResetPassword", "Account", new { email = model.Email, code }, Request.Scheme)!;
             await emailSender.SendAsync(model.Email, "Reset your HerProof password",
-                $"Reset your password by <a href=\"{HtmlEncoder.Default.Encode(resetLink)}\">clicking here</a>.");
+                EmailTemplate.WithButton(
+                    "Reset your password",
+                    "<p>We received a request to reset your HerProof password. If this wasn't you, you can ignore this email.</p>",
+                    "Reset password",
+                    HtmlEncoder.Default.Encode(resetLink)));
+
+            if (environment.IsDevelopment())
+            {
+                ViewBag.DevResetLink = resetLink;
+            }
         }
 
         // Always the same response, confirmed account or not: don't reveal which emails are registered.

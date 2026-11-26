@@ -3,6 +3,7 @@ using HerProof.Application.Repositories;
 using HerProof.Domain.Identity;
 using HerProof.Domain.Repositories;
 using HerProof.Infrastructure.Persistence;
+using HerProof.Web.Filters;
 using HerProof.Web.Models.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +20,7 @@ namespace HerProof.Web.Controllers;
 [Authorize(Roles = nameof(UserRole.Candidate))]
 [Route("repositories")]
 [EnableRateLimiting("upload")]
+[TypeFilter(typeof(RequireCompleteCandidateProfileFilter))]
 public class RepositoriesController(HerProofDbContext db, IGitHubClient gitHubClient) : Controller
 {
     [HttpGet]
@@ -54,8 +56,34 @@ public class RepositoriesController(HerProofDbContext db, IGitHubClient gitHubCl
         return View(repositories);
     }
 
+    /// <summary>Polled by repositories-poll.js so the page can show a live spinner and swap it for the
+    /// real result in place, instead of asking the candidate to keep hitting refresh manually.</summary>
+    [HttpGet("{repositoryId:guid}/status")]
+    public async Task<IActionResult> Status(Guid repositoryId, CancellationToken cancellationToken)
+    {
+        var candidateId = await GetCandidateProfileIdAsync(cancellationToken);
+        var repository = await db.Repositories.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == repositoryId && r.CandidateId == candidateId, cancellationToken);
+        if (repository is null)
+        {
+            return NotFound();
+        }
+
+        var latestAnalysis = await db.RepositoryAnalyses.AsNoTracking()
+            .Where(a => a.RepositoryId == repositoryId)
+            .OrderByDescending(a => a.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return Json(new { status = latestAnalysis?.Status.ToString() ?? "Pending" });
+    }
+
     [HttpGet("submit")]
-    public IActionResult Submit() => View(new SubmitRepositoryViewModel());
+    public async Task<IActionResult> Submit(CancellationToken cancellationToken)
+    {
+        var candidateProfile = await GetCandidateProfileAsync(cancellationToken);
+        ViewBag.MissingGitHubProfile = string.IsNullOrWhiteSpace(candidateProfile?.GitHubProfile);
+        return View(new SubmitRepositoryViewModel());
+    }
 
     [HttpPost("submit")]
     [ValidateAntiForgeryToken]
@@ -82,9 +110,10 @@ public class RepositoriesController(HerProofDbContext db, IGitHubClient gitHubCl
         var candidateId = candidateProfile.Id;
         var (owner, repoName) = parsed.Value;
         string commitSha;
+        string branch;
         try
         {
-            commitSha = await gitHubClient.ResolveBranchToCommitShaAsync(owner, repoName, model.Branch, cancellationToken);
+            (commitSha, branch) = await ResolveCommitShaWithBranchFallbackAsync(owner, repoName, model.Branch, cancellationToken);
         }
         catch (GitHubNotFoundException)
         {
@@ -96,9 +125,19 @@ public class RepositoriesController(HerProofDbContext db, IGitHubClient gitHubCl
             ModelState.AddModelError(string.Empty, $"GitHub is rate-limiting us right now. Try again in about {ex.RetryAfter.TotalMinutes:F0} minute(s).");
             return View(model);
         }
+        catch (GitHubApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+        {
+            ModelState.AddModelError(nameof(model.Branch), "That branch name doesn't look valid. Double-check it and try again.");
+            return View(model);
+        }
+        catch (GitHubApiException)
+        {
+            ModelState.AddModelError(string.Empty, "GitHub couldn't process that request right now. Please try again shortly.");
+            return View(model);
+        }
 
         var repository = new Repository(
-            candidateId, repoName, model.RepositoryUrl, model.Branch, commitSha, RepositoryVisibility.Public, DateTime.UtcNow);
+            candidateId, repoName, model.RepositoryUrl, branch, commitSha, RepositoryVisibility.Public, DateTime.UtcNow);
 
         // Flags, never blocks (CLAUDE.md rule 5): GitHub's contributor list can miss a real
         // contributor (private commit email, squashed PRs), so a failed or inconclusive check is
@@ -126,8 +165,28 @@ public class RepositoriesController(HerProofDbContext db, IGitHubClient gitHubCl
         db.Add(analysis);
         await db.SaveChangesAsync(cancellationToken);
 
-        TempData["AnalysisMessage"] = "Repository submitted. Analysis is queued — refresh this page in a few seconds to see progress.";
+        TempData["AnalysisMessage"] = "Repository submitted - analysis is running now.";
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>Tries the candidate-supplied branch first; if it 404s, looks up the repo's real
+    /// default branch and retries once before giving up. Handles the common case where the branch
+    /// field was left at its "main" placeholder on a repo whose default branch is "master" (or
+    /// anything else) — without this, a perfectly real, public repo reads as "not found".</summary>
+    private async Task<(string CommitSha, string Branch)> ResolveCommitShaWithBranchFallbackAsync(
+        string owner, string repoName, string requestedBranch, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var sha = await gitHubClient.ResolveBranchToCommitShaAsync(owner, repoName, requestedBranch, cancellationToken);
+            return (sha, requestedBranch);
+        }
+        catch (GitHubNotFoundException)
+        {
+            var defaultBranch = await gitHubClient.GetDefaultBranchAsync(owner, repoName, cancellationToken);
+            var sha = await gitHubClient.ResolveBranchToCommitShaAsync(owner, repoName, defaultBranch, cancellationToken);
+            return (sha, defaultBranch);
+        }
     }
 
     private async Task<Guid?> GetCandidateProfileIdAsync(CancellationToken cancellationToken)

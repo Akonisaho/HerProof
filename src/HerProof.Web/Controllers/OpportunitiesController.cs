@@ -6,26 +6,80 @@ using HerProof.Domain.Competencies;
 using HerProof.Domain.Identity;
 using HerProof.Domain.Opportunities;
 using HerProof.Infrastructure.Persistence;
+using HerProof.Web.Filters;
+using HerProof.Web.Models.Opportunities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HerProof.Web.Controllers;
 
-/// <summary>Candidate-facing opportunity browsing and application (docs/05 P04-P05).</summary>
+/// <summary>Candidate-facing opportunity browsing and application (docs/05 P04-P05). Anonymous
+/// visitors can still browse (marketing funnel); a logged-in Candidate with an incomplete profile is
+/// redirected to complete it first (RequireCompleteCandidateProfileFilter).</summary>
 [Route("opportunities")]
+[TypeFilter(typeof(RequireCompleteCandidateProfileFilter))]
 public class OpportunitiesController(HerProofDbContext db) : Controller
 {
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(OpportunitySearchViewModel search, CancellationToken cancellationToken)
     {
         var opportunities = await db.Opportunities
             .AsNoTracking()
+            .Include(o => o.RequiredCompetencies)
             .Where(o => o.Status == OpportunityStatus.Published)
+            .OrderBy(o => o.DeadlineUtc)
             .ToListAsync(cancellationToken);
 
-        return View(opportunities);
+        var organisationIds = opportunities.Select(o => o.OrganisationId).Distinct().ToList();
+        var organisationNames = await db.Organisations.AsNoTracking()
+            .Where(o => organisationIds.Contains(o.Id))
+            .ToDictionaryAsync(o => o.Id, o => o.Name, cancellationToken);
+
+        var allCompetencyNames = await db.Competencies.AsNoTracking()
+            .ToDictionaryAsync(c => c.Id, c => c.Name, cancellationToken);
+
+        // Server-side so "search for a skill" actually matches the opportunity's required
+        // competencies, not just title/description text a candidate wouldn't think to type.
+        if (!string.IsNullOrWhiteSpace(search.Q))
+        {
+            var q = search.Q.Trim();
+            opportunities = opportunities.Where(o =>
+                o.Title.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || o.Description.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || o.RequiredCompetencies.Any(rc => allCompetencyNames.GetValueOrDefault(rc.CompetencyId, "").Contains(q, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+
+        if (search.Type is not null)
+        {
+            opportunities = opportunities.Where(o => o.OpportunityType == search.Type).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(search.Location))
+        {
+            var location = search.Location.Trim();
+            opportunities = opportunities.Where(o => o.Location != null && o.Location.Contains(location, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (search.MaxExperienceYears is not null)
+        {
+            opportunities = opportunities.Where(o => o.ExperienceYearsRequired is null || o.ExperienceYearsRequired <= search.MaxExperienceYears).ToList();
+        }
+
+        if (search.HasSalaryDisclosed)
+        {
+            opportunities = opportunities.Where(o => o.SalaryMin is not null || o.SalaryMax is not null).ToList();
+        }
+
+        var items = opportunities
+            .Select(o => new OpportunityListItem { Opportunity = o, OrganisationName = organisationNames.GetValueOrDefault(o.OrganisationId, "Unknown organisation") })
+            .ToList();
+
+        ViewBag.Search = search;
+
+        return View(items);
     }
 
     [HttpGet("{opportunityId:guid}")]
@@ -41,6 +95,11 @@ public class OpportunitiesController(HerProofDbContext db) : Controller
         {
             return NotFound();
         }
+
+        var organisationName = await db.Organisations.AsNoTracking()
+            .Where(o => o.Id == opportunity.OrganisationId)
+            .Select(o => o.Name)
+            .FirstOrDefaultAsync(cancellationToken) ?? "Unknown organisation";
 
         var competencyNames = await db.Competencies.AsNoTracking()
             .Where(c => opportunity.RequiredCompetencies.Select(rc => rc.CompetencyId).Contains(c.Id))
@@ -65,10 +124,12 @@ public class OpportunitiesController(HerProofDbContext db) : Controller
                 var candidateCompetencies = await db.CandidateCompetencies.AsNoTracking()
                     .Where(cc => cc.CandidateId == candidateProfile.Id && requiredCompetencyIds.Contains(cc.CompetencyId))
                     .ToDictionaryAsync(cc => cc.CompetencyId, cancellationToken);
-                var learningResources = await db.LearningResources.AsNoTracking()
+                var candidateLearningResources = await db.LearningResources.AsNoTracking()
                     .Where(lr => requiredCompetencyIds.Contains(lr.CompetencyId))
+                    .ToListAsync(cancellationToken);
+                var learningResources = candidateLearningResources
                     .GroupBy(lr => lr.CompetencyId)
-                    .ToDictionaryAsync(g => g.Key, g => g.First(), cancellationToken);
+                    .ToDictionary(g => g.Key, g => g.OrderBy(lr => lr.TargetLevel).ThenBy(lr => lr.Title).First());
 
                 gapReport = GapToProofEngine.Generate(opportunity, candidateProfile.Id, candidateCompetencies, competencyNames, learningResources, DateTime.UtcNow);
 
@@ -102,6 +163,7 @@ public class OpportunitiesController(HerProofDbContext db) : Controller
             }
         }
 
+        ViewBag.OrganisationName = organisationName;
         ViewBag.CompetencyNames = competencyNames;
         ViewBag.Eligibility = eligibility;
         ViewBag.CandidateProfileId = candidateProfile?.Id;
@@ -150,6 +212,15 @@ public class OpportunitiesController(HerProofDbContext db) : Controller
             .Where(p => p.CandidateId == candidateProfile.Id)
             .SelectMany(p => p.Credentials.Select(c => c.CredentialIdentifier))
             .ToListAsync(cancellationToken);
+
+        // Evidence before verification, platform-wide (CLAUDE.md rule 1): a candidate with zero
+        // verified competencies has no proof to stand behind an application yet. Defence in depth —
+        // the view already hides the Apply button in this case.
+        if (ownedCredentials.Count == 0)
+        {
+            return BadRequest("You need at least one Assessor-verified competency on your Skills Passport before you can apply. Submit a repository or take a practical assessment first.");
+        }
+
         var attachedCredentials = AppliedCredentialSelector.Select(ownedCredentials, selectedCredentialIdentifiers ?? []);
         var sharedCredentialsJson = JsonSerializer.Serialize(attachedCredentials);
 

@@ -1,0 +1,181 @@
+@model HerProof.Web.Models.Home.CandidateDashboardViewModel
+@using HerProof.Domain.Interviews
+@{
+    ViewData["Title"] = "My HerProof";
+    var firstName = Model.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? Model.FullName;
+
+    static string InterviewStatusBadge(InterviewStatus status) => status switch
+    {
+        InterviewStatus.Completed => "badge bg-success",
+        InterviewStatus.InProgress => "badge bg-warning text-dark",
+        _ => "badge bg-secondary",
+    };
+}
+
+<div class="hero-wrap">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">Welcome back</span>
+        <h1>Hi, @firstName 👋</h1>
+        <p class="lead lead-full mb-0">
+            @if (Model.VerifiedCredentials.Count > 0)
+            {
+                <text>Your verified skills and real evidence, all in one place.</text>
+            }
+            else
+            {
+                <text>Let's get your first skill verified — submit a repository or take a practical assessment to get started.</text>
+            }
+        </p>
+    </div>
+</div>
+
+<section class="brand-section pb-0">
+    <div class="row g-3">
+        <div class="col-6 col-md-3">
+            <div class="brand-card text-center">
+                <div class="fs-2 fw-bold" style="color: var(--brand-pink);">@Model.VerifiedCredentials.Count</div>
+                <div class="text-muted small">Verified skills</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="brand-card text-center">
+                <div class="fs-2 fw-bold" style="color: var(--brand-pink);">@Model.UnverifiedCompetencyCount</div>
+                <div class="text-muted small">Not yet verified</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="brand-card text-center">
+                <div class="fs-2 fw-bold" style="color: var(--brand-pink);">@Model.ApplicationCount</div>
+                <div class="text-muted small">Applications sent</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="brand-card text-center">
+                <div class="fs-2 fw-bold" style="color: var(--brand-pink);">@Model.RecentInterviews.Count</div>
+                <div class="text-muted small">Interviews taken</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="brand-section">
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <h2>What's next</h2>
+            <div class="d-flex flex-column gap-2 mb-4">
+                <a asp-controller="Repositories" asp-action="Index" class="opportunity-card brand-card d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <strong>Submit a repository</strong>
+                        <span class="opportunity-org d-block">Get your real code analysed and interviewed by Thandi</span>
+                    </div>
+                    <span class="device-pill">Go &rarr;</span>
+                </a>
+                <a asp-controller="Opportunities" asp-action="Index" class="opportunity-card brand-card d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <strong>Browse opportunities</strong>
+                        <span class="opportunity-org d-block">Search and filter jobs, internships and bursaries</span>
+                    </div>
+                    <span class="device-pill">Go &rarr;</span>
+                </a>
+            </div>
+
+            @if (Model.RecentInterviews.Count > 0)
+            {
+                <h2>Recent interviews</h2>
+                <div class="d-flex flex-column gap-2 mb-4">
+                    @foreach (var interview in Model.RecentInterviews)
+                    {
+                        <a asp-controller="Interview" asp-action="@(interview.Status == InterviewStatus.Completed ? "Report" : "Take")" asp-route-interviewId="@interview.Id" class="opportunity-card brand-card d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <strong>@interview.InterviewerPersona interview</strong>
+                                <span class="opportunity-org d-block">@interview.Mode · @interview.StartedAtUtc.ToString("d MMM yyyy")</span>
+                            </div>
+                            <span class="@InterviewStatusBadge(interview.Status)">@interview.Status</span>
+                        </a>
+                    }
+                </div>
+                <p><a asp-controller="Interview" asp-action="Index">See all my interviews &rarr;</a></p>
+            }
+
+            @if (Model.RecommendedOpportunities.Count > 0)
+            {
+                <h2>Opportunities closing soon</h2>
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var o in Model.RecommendedOpportunities)
+                    {
+                        <a asp-controller="Opportunities" asp-action="Details" asp-route-opportunityId="@o.Id" class="opportunity-card brand-card d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <strong>@o.Title</strong>
+                                <span class="opportunity-org d-block">@Model.OrganisationNamesByOpportunityId.GetValueOrDefault(o.OrganisationId, "Unknown organisation")</span>
+                            </div>
+                            @if (o.DeadlineUtc is not null)
+                            {
+                                <span class="device-pill">Closes @o.DeadlineUtc.Value.ToString("d MMM")</span>
+                            }
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="col-lg-5">
+            <div class="mockup-frame">
+                <div class="mockup-chrome">
+                    <span class="mockup-dot"></span>
+                    <span class="mockup-dot"></span>
+                    <span class="mockup-dot"></span>
+                </div>
+                <div class="mockup-body">
+                    <div class="skill-card-head">
+                        <div>
+                            <span class="skill-card-title">Skills Passport</span>
+                            @if (Model.PassportNumber is not null)
+                            {
+                                <div class="skill-card-id">@Model.PassportNumber</div>
+                            }
+                        </div>
+                        @if (Model.VerifiedCredentials.Count > 0)
+                        {
+                            <span class="mockup-badge">✓ Verified</span>
+                        }
+                    </div>
+
+                    @if (Model.VerifiedCredentials.Count == 0)
+                    {
+                        <p class="text-muted small mb-0 mt-3">No verified skills yet — once an Assessor verifies your first competency, it'll show up here.</p>
+                    }
+                    else
+                    {
+                        foreach (var (competencyName, level) in Model.VerifiedCredentials)
+                        {
+                            <div class="skill-row">
+                                <span class="skill-name"><span class="skill-check">✓</span> @competencyName</span>
+                                <span class="skill-level">Verified @(level is not null ? $"· L{level}" : "")</span>
+                            </div>
+                        }
+                    }
+
+                    <div class="skill-card-footer">
+                        @if (Model.HasActiveShare)
+                        {
+                            <div>
+                                <span class="d-block fw-bold">Active share link</span>
+                                <span class="d-block text-sm text-muted">Scannable QR code on My Passport</span>
+                            </div>
+                        }
+                        else if (Model.VerifiedCredentials.Count > 0)
+                        {
+                            <div>
+                                <span class="d-block fw-bold">Share your passport</span>
+                                <span class="d-block text-sm text-muted">Create a QR code employers can scan</span>
+                            </div>
+                        }
+                        <a asp-controller="Passport" asp-action="Index" class="btn-brand-outline btn-sm">Open My Passport</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

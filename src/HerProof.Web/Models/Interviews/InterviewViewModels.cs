@@ -17,6 +17,6 @@ public class SubmitAnswerViewModel
 public class VoiceConsentViewModel
 {
     public Guid RepositoryId { get; set; }
-    public Guid OpportunityId { get; set; }
+    public Guid? OpportunityId { get; set; }
     public bool ConsentGiven { get; set; }
 }

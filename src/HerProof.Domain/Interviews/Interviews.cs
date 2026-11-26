@@ -21,7 +21,11 @@ public class Interview : Entity
 
     public Guid CandidateId { get; init; }
     public Guid RepositoryId { get; init; }
-    public Guid OpportunityId { get; init; }
+
+    /// <summary>Null means a general, opportunity-independent interview: the candidate is proving a
+    /// competency for her own Skills Passport, not for one specific posting (docs/05: "evidence before
+    /// verification" shouldn't require an opportunity to exist first).</summary>
+    public Guid? OpportunityId { get; init; }
     public InterviewMode Mode { get; private set; }
     public InterviewStatus Status { get; private set; } = InterviewStatus.InProgress;
     public string InterviewerPersona { get; init; }
@@ -39,7 +43,7 @@ public class Interview : Entity
         InterviewerPersona = string.Empty;
     }
 
-    public Interview(Guid candidateId, Guid repositoryId, Guid opportunityId, InterviewMode mode, string interviewerPersona, DateTime startedAtUtc)
+    public Interview(Guid candidateId, Guid repositoryId, Guid? opportunityId, InterviewMode mode, string interviewerPersona, DateTime startedAtUtc)
     {
         CandidateId = candidateId;
         RepositoryId = repositoryId;

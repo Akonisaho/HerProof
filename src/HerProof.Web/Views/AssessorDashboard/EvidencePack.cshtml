@@ -23,106 +23,140 @@
     };
 }
 
+<div class="hero-wrap">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">Evidence pack</span>
+        <h1>@Model.CandidateName - @Model.CompetencyName</h1>
+        <p class="opportunity-meta mb-0">
+            Declared level: @(Model.DeclaredLevel?.ToString() ?? "not declared") ·
+            Verified level: @(Model.VerifiedLevel?.ToString() ?? "not yet assessed") ·
+            Status: <strong>@Model.CandidateCompetencyStatus</strong>
+        </p>
+    </div>
+</div>
+
+<section class="brand-section">
+
 @if ((bool?)ViewBag.IsDemoData == true)
 {
-    <div class="alert alert-info">Demo data — some evidence here is a pre-seeded fallback, not freshly
+    <div class="alert alert-info">Demo data - some evidence here is a pre-seeded fallback, not freshly
         computed.</div>
 }
 
-<h1>@Model.CandidateName — @Model.CompetencyName</h1>
-<p>Declared level: @(Model.DeclaredLevel?.ToString() ?? "not declared") &middot;
-   Verified level: @(Model.VerifiedLevel?.ToString() ?? "not yet assessed") &middot;
-   Status: <strong>@Model.CandidateCompetencyStatus</strong></p>
-
-<div class="alert alert-info">
+<div class="brand-card mb-3">
     <strong>AI suggestion (not a decision):</strong>
     <span class="@SuggestionBadge(Model.AiSuggestion)">@Model.AiSuggestion</span>
-    — derived from repository evidence and interview verdicts only. An assessor makes the actual call below.
+ - derived from repository evidence and interview verdicts only. An assessor makes the actual call below.
+
+    @if (contributorStatuses.Count > 0)
+    {
+        <p class="mt-2 mb-0">
+            Repository contributor check:
+            @foreach (var status in contributorStatuses)
+            {
+                var (badgeClass, label) = ContributorBadge(status);
+                <span class="@badgeClass">@label</span>
+            }
+        </p>
+    }
 </div>
 
-@if (contributorStatuses.Count > 0)
-{
-    <p>
-        Repository contributor check:
-        @foreach (var status in contributorStatuses)
-        {
-            var (badgeClass, label) = ContributorBadge(status);
-            <span class="@badgeClass">@label</span>
-        }
-    </p>
-}
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="brand-card h-100">
+            <h3>Repository findings</h3>
+            <ul class="mb-0">
+                @foreach (var f in Model.RepositoryFindings)
+                {
+                    <li>@f.FilePath:@f.LineReference - @f.Description (@f.Confidence confidence)</li>
+                }
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="brand-card h-100">
+            <h3>Execution (sandbox)</h3>
+            <ul class="mb-0">
+                @foreach (var e in Model.ExecutionReports)
+                {
+                    <li>Restore: @e.RestoreOk, Build: @e.BuildOk, Tests passed: @e.TestsPassed, failed: @e.TestsFailed - @e.LogExcerpt</li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
 
-<h2 class="h5">Repository findings</h2>
-<ul>
-    @foreach (var f in Model.RepositoryFindings)
-    {
-        <li>@f.FilePath:@f.LineReference — @f.Description (@f.Confidence confidence)</li>
-    }
-</ul>
-
-<h2 class="h5">Execution (sandbox)</h2>
-<ul>
-    @foreach (var e in Model.ExecutionReports)
-    {
-        <li>Restore: @e.RestoreOk, Build: @e.BuildOk, Tests passed: @e.TestsPassed, failed: @e.TestsFailed — @e.LogExcerpt</li>
-    }
-</ul>
-
-<h2 class="h5">Interview (Thandi) — code beside answer</h2>
+<h3 class="mt-4">Interview (Thandi) - code beside answer</h3>
 @foreach (var (question, turn) in Model.InterviewTurns)
 {
-    <div class="card mb-2">
-        <div class="card-body">
-            <p><strong>@question.QuestionText</strong> (<code>@question.SnippetFilePath</code>:@question.SnippetLines)</p>
-            <div class="row">
-                <div class="col-md-6"><strong>Candidate's answer</strong><p class="small">@turn.TranscriptConfirmed</p></div>
-                <div class="col-md-6"><strong>Verdict</strong><p class="small">@turn.Evaluation!.Verdict — @turn.Evaluation.EvidenceSummary</p></div>
-            </div>
+    <div class="brand-card mb-2">
+        <p><strong>@question.QuestionText</strong> (<code>@question.SnippetFilePath</code>:@question.SnippetLines)</p>
+        <div class="row">
+            <div class="col-md-6"><strong>Candidate's answer</strong><p class="small">@turn.TranscriptConfirmed</p></div>
+            <div class="col-md-6"><strong>Verdict</strong><p class="small">@turn.Evaluation!.Verdict - @turn.Evaluation.EvidenceSummary</p></div>
         </div>
     </div>
 }
 
-<h2 class="h5">Practical assessment reviews</h2>
-<ul>
-    @foreach (var r in Model.AssessmentReviews)
-    {
-        <li>@r.ReviewStatus — @r.Feedback</li>
-    }
-</ul>
-
-<h2 class="h5">Integrity timeline</h2>
-<ul>
-    @foreach (var e in Model.IntegrityTimeline)
-    {
-        <li>@e.OccurredAtUtc.ToString("u") — @e.EventType</li>
-    }
-</ul>
-
-<h2 class="h5">Decision history (append-only)</h2>
-<ul>
-    @foreach (var v in Model.DecisionHistory)
-    {
-        <li>@v.CreatedAtUtc.ToString("u") — @v.Decision @(v.FinalLevel is not null ? $"(level {v.FinalLevel})" : "") — @v.EvidenceSummary</li>
-    }
-</ul>
-
-<h2 class="h5">Your decision</h2>
-<form asp-action="Decide" asp-route-candidateId="@candidateId" asp-route-competencyId="@competencyId" method="post">
-    <div class="mb-3">
-        <label class="form-label">Decision</label>
-        <select name="Decision" class="form-select">
-            <option value="Verified">Approve (Verified)</option>
-            <option value="Developing">Recommend development</option>
-            <option value="NotDemonstrated">Not demonstrated</option>
-        </select>
+<div class="row g-4 mt-1">
+    <div class="col-md-4">
+        <div class="brand-card h-100">
+            <h3>Practical assessment reviews</h3>
+            <ul class="mb-0">
+                @foreach (var r in Model.AssessmentReviews)
+                {
+                    <li>@r.ReviewStatus - @r.Feedback</li>
+                }
+            </ul>
+        </div>
     </div>
-    <div class="mb-3">
-        <label class="form-label">Final level (only if Verified)</label>
-        <input type="number" name="FinalLevel" min="0" max="4" class="form-control" />
+    <div class="col-md-4">
+        <div class="brand-card h-100">
+            <h3>Integrity timeline</h3>
+            <ul class="mb-0">
+                @foreach (var e in Model.IntegrityTimeline)
+                {
+                    <li>@e.OccurredAtUtc.ToString("u") - @e.EventType</li>
+                }
+            </ul>
+        </div>
     </div>
-    <div class="mb-3">
-        <label class="form-label">Feedback</label>
-        <textarea name="Feedback" class="form-control"></textarea>
+    <div class="col-md-4">
+        <div class="brand-card h-100">
+            <h3>Decision history (append-only)</h3>
+            <ul class="mb-0">
+                @foreach (var v in Model.DecisionHistory)
+                {
+                    <li>@v.CreatedAtUtc.ToString("u") - @v.Decision @(v.FinalLevel is not null ? $"(level {v.FinalLevel})" : "") - @v.EvidenceSummary</li>
+                }
+            </ul>
+        </div>
     </div>
-    <button type="submit" class="btn btn-primary">Submit decision</button>
-</form>
+</div>
+
+<div class="brand-card mt-4" style="max-width: 640px;">
+    <h3>Your decision</h3>
+    <form asp-action="Decide" asp-route-candidateId="@candidateId" asp-route-competencyId="@competencyId" method="post">
+        <div class="mb-3">
+            <label class="form-label">Decision</label>
+            <select name="Decision" class="form-select">
+                <option value="Verified">Approve (Verified)</option>
+                <option value="Developing">Recommend development</option>
+                <option value="NotDemonstrated">Not demonstrated</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Final level (only if Verified)</label>
+            <input type="number" name="FinalLevel" min="0" max="4" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Feedback</label>
+            <textarea name="Feedback" class="form-control"></textarea>
+        </div>
+        <button type="submit" class="btn-brand">Submit decision</button>
+    </form>
+</div>
+
+</section>

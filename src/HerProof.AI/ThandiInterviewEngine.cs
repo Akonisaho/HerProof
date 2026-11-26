@@ -2,6 +2,7 @@ using System.Text.Json;
 using HerProof.Application.AI;
 using HerProof.Application.Interviews;
 using HerProof.Application.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace HerProof.AI;
 
@@ -9,7 +10,7 @@ namespace HerProof.AI;
 /// evaluates each answer turn, with the same discipline as the repository analysis pipeline: schema
 /// validation, snippet verification against the pinned commit, a forbidden-content filter on every
 /// piece of free text, a hard probe cap, and retry-once-then-fail-safe on bad model output.</summary>
-public class ThandiInterviewEngine(IAIService aiService, string interviewerName)
+public class ThandiInterviewEngine(IAIService aiService, string interviewerName, ILogger<ThandiInterviewEngine>? logger = null)
 {
     public const string PromptVersion = "thandi-interview-v1";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -29,15 +30,39 @@ public class ThandiInterviewEngine(IAIService aiService, string interviewerName)
 
         if (dto?.Questions is null)
         {
+            logger?.LogWarning("Thandi question generation: model response could not be parsed into any questions at all (both attempts failed).");
             return [];
         }
 
-        return dto.Questions
-            .Where(q => !string.IsNullOrWhiteSpace(q.CompetencyName) && !string.IsNullOrWhiteSpace(q.Text))
-            .Where(q => SnippetReferenceVerifier.Exists(content, q.SnippetFilePath, q.SnippetLines))
-            .Where(q => !ForbiddenContentFilter.ContainsForbiddenContent(q.Text))
-            .Select(q => new GeneratedQuestion(q.CompetencyName, q.Text, q.SnippetFilePath, q.SnippetLines, q.ExpectedPoints ?? [], q.Difficulty))
-            .ToList();
+        var kept = new List<GeneratedQuestion>();
+        foreach (var q in dto.Questions)
+        {
+            if (string.IsNullOrWhiteSpace(q.CompetencyName) || string.IsNullOrWhiteSpace(q.Text))
+            {
+                logger?.LogWarning("Thandi question dropped: missing competency name or text.");
+                continue;
+            }
+
+            if (!SnippetReferenceVerifier.Exists(content, q.SnippetFilePath, q.SnippetLines))
+            {
+                var available = string.Join(", ", content.Files.Select(f => f.Path));
+                logger?.LogWarning(
+                    "Thandi question dropped: snippet {Path}:{Lines} not found in fetched content. Fetched files were: {Available}",
+                    q.SnippetFilePath, q.SnippetLines, available);
+                continue;
+            }
+
+            if (ForbiddenContentFilter.ContainsForbiddenContent(q.Text))
+            {
+                logger?.LogWarning("Thandi question dropped: forbidden content filter matched.");
+                continue;
+            }
+
+            kept.Add(new GeneratedQuestion(q.CompetencyName, q.Text, q.SnippetFilePath, q.SnippetLines, q.ExpectedPoints ?? [], q.Difficulty));
+        }
+
+        logger?.LogInformation("Thandi question generation: {Kept}/{Total} questions survived filtering.", kept.Count, dto.Questions.Count);
+        return kept;
     }
 
     public async Task<TurnEvaluationResult?> EvaluateTurnAsync(
@@ -117,10 +142,13 @@ public class ThandiInterviewEngine(IAIService aiService, string interviewerName)
         try
         {
             var completion = await aiService.CompleteJsonAsync(systemPrompt, userContent, PromptVersion, cancellationToken);
-            return JsonSerializer.Deserialize<T>(completion.RawJson, JsonOptions);
+            var normalizedJson = LlmJsonKeyNormalizer.ToCamelCaseKeys(completion.RawJson);
+            logger?.LogInformation("Thandi raw AI JSON: {Raw}", completion.RawJson);
+            return JsonSerializer.Deserialize<T>(normalizedJson, JsonOptions);
         }
-        catch (Exception) when (cancellationToken.IsCancellationRequested == false)
+        catch (Exception ex) when (cancellationToken.IsCancellationRequested == false)
         {
+            logger?.LogWarning(ex, "Thandi AI completion failed to parse.");
             return null;
         }
     }

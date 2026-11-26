@@ -13,6 +13,7 @@ public class Assessment : Entity
 {
     private readonly List<AssessmentCompetency> _competencies = [];
     private readonly List<RubricCriterion> _rubricCriteria = [];
+    private readonly List<AssessmentQuestion> _questions = [];
 
     public string Title { get; private set; }
     public string Description { get; private set; }
@@ -23,6 +24,7 @@ public class Assessment : Entity
 
     public IReadOnlyCollection<AssessmentCompetency> Competencies => _competencies;
     public IReadOnlyCollection<RubricCriterion> RubricCriteria => _rubricCriteria;
+    public IReadOnlyCollection<AssessmentQuestion> Questions => _questions;
 
     private Assessment()
     {
@@ -54,9 +56,55 @@ public class Assessment : Entity
         return criterion;
     }
 
+    public AssessmentQuestion AddQuestion(int order, string title, string prompt, string starterCode, string fileName, AssessmentQuestionType questionType)
+    {
+        var question = new AssessmentQuestion(Id, order, title, prompt, starterCode, fileName, questionType);
+        _questions.Add(question);
+        return question;
+    }
+
     public void Publish() => Status = AssessmentStatus.Published;
 
     public void Archive() => Status = AssessmentStatus.Archived;
+}
+
+/// <summary>A structured practical question (docs/05 P13 polish): "write this feature" vs "find and
+/// fix the bug in this code", each with its own starter code shown in its own editor tab — not just
+/// one freeform textarea with no prompt at all.</summary>
+public enum AssessmentQuestionType
+{
+    Implement,
+    FixBug,
+}
+
+public class AssessmentQuestion : Entity
+{
+    public Guid AssessmentId { get; init; }
+    public int Order { get; init; }
+    public string Title { get; private set; }
+    public string Prompt { get; private set; }
+    public string StarterCode { get; private set; }
+    public string FileName { get; private set; }
+    public AssessmentQuestionType QuestionType { get; private set; }
+
+    private AssessmentQuestion()
+    {
+        Title = string.Empty;
+        Prompt = string.Empty;
+        StarterCode = string.Empty;
+        FileName = string.Empty;
+    }
+
+    public AssessmentQuestion(Guid assessmentId, int order, string title, string prompt, string starterCode, string fileName, AssessmentQuestionType questionType)
+    {
+        AssessmentId = assessmentId;
+        Order = order;
+        Title = title;
+        Prompt = prompt;
+        StarterCode = starterCode;
+        FileName = fileName;
+        QuestionType = questionType;
+    }
 }
 
 public class AssessmentCompetency : Entity

@@ -9,14 +9,26 @@
 }
 
 <div class="thandi-row">
-    <div class="thandi-avatar" id="thandi-avatar">T</div>
+    <div class="thandi-avatar" id="thandi-avatar">
+        <svg class="thandi-face" viewBox="0 0 64 64" aria-hidden="true">
+            <circle class="thandi-face-bg" cx="32" cy="32" r="30" />
+            <g class="thandi-eyes">
+                <ellipse class="thandi-eye" cx="22" cy="28" rx="3.2" ry="4" />
+                <ellipse class="thandi-eye" cx="42" cy="28" rx="3.2" ry="4" />
+            </g>
+            <path class="thandi-mouth" d="M22,42 Q32,45 42,42" />
+        </svg>
+    </div>
     <div>
         <span class="thandi-name">Thandi</span>
         <span class="thandi-status" id="thandi-status">Your interviewer</span>
+        <span class="thandi-thinking-dots d-none" id="thandi-thinking-dots" aria-hidden="true">
+            <span></span><span></span><span></span>
+        </span>
     </div>
 </div>
 <p class="text-muted">
-    Only the content of your answers is assessed — never accent, pronunciation, appearance or emotion.
+    Only the content of your answers is assessed - never accent, pronunciation, appearance or emotion.
     You can take your time.
 </p>
 
@@ -38,6 +50,21 @@
 
 @if (isVoice)
 {
+    <div class="card mb-3" id="camera-panel">
+        <div class="card-body">
+            <div class="camera-box">
+                <video id="candidate-camera" autoplay muted playsinline></video>
+                <span class="camera-rec-badge d-none" id="camera-rec-badge">● REC</span>
+                <div class="camera-sound-meter" aria-hidden="true">
+                    <span class="camera-sound-bar"></span>
+                </div>
+            </div>
+            <div id="camera-unavailable" class="text-muted small mt-2 d-none">
+                Camera/microphone preview isn't available (permission denied or no device found) - you can still answer normally, nothing here is required.
+            </div>
+        </div>
+    </div>
+
     <div class="card mb-3" id="voice-panel" data-interview-id="@interview.Id" data-turn-id="@activeTurn.Id">
         <div class="card-body">
             <p class="mb-2">
@@ -46,7 +73,7 @@
             <button type="button" id="record-btn" class="btn btn-outline-danger">🎤 Record my answer</button>
             <button type="button" id="stop-btn" class="btn btn-outline-secondary d-none">⬛ Stop</button>
             <div id="voice-unsupported" class="text-muted small mt-2 d-none">
-                Voice recording isn't supported in this browser (try Chrome or Edge) — please type your answer below.
+                Voice recording isn't supported in this browser (try Chrome or Edge) - please type your answer below.
             </div>
             <div id="voice-error" class="text-danger small mt-2 d-none"></div>
         </div>
@@ -72,8 +99,10 @@
 <p class="mt-3 small text-muted">Question @(question.QuestionOrder + 1) of @interview.Questions.Count</p>
 
 @section Scripts {
+    <script src="~/js/interview-thinking.js" asp-append-version="true"></script>
     @if (isVoice)
     {
         <script src="~/js/interview-voice.js" asp-append-version="true"></script>
+        <script src="~/js/interview-camera.js" asp-append-version="true"></script>
     }
 }

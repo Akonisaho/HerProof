@@ -77,7 +77,8 @@ public class RepositoryAnalysisOrchestrator(IAIService aiService, IStaticCodeAna
 
         try
         {
-            var dto = JsonSerializer.Deserialize<LlmAnalysisDto>(completion.RawJson, JsonOptions);
+            var normalizedJson = LlmJsonKeyNormalizer.ToCamelCaseKeys(completion.RawJson);
+            var dto = JsonSerializer.Deserialize<LlmAnalysisDto>(normalizedJson, JsonOptions);
             if (dto?.Findings is null)
             {
                 return null;

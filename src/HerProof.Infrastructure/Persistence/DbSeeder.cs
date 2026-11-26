@@ -1,8 +1,11 @@
+using HerProof.Application.Passports;
+using HerProof.Application.Verification;
 using HerProof.Domain.Competencies;
 using HerProof.Domain.Identity;
 using HerProof.Domain.Interviews;
 using HerProof.Domain.Opportunities;
 using HerProof.Domain.Repositories;
+using HerProof.Domain.Verification;
 using HerProof.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -29,7 +32,152 @@ public static class DbSeeder
         if (seedDemoData)
         {
             await SeedDemoDataAsync(db, userManager, competencies);
+
+            // Runs for the seeded demo account AND whichever real account is being used to rehearse
+            // the demo — independent of SeedDemoDataAsync's "already seeded" guard, so it still
+            // applies to a database that was seeded before this existed.
+            foreach (var email in new[] { "anko@demo.herproof.test", "takalanikonie08@gmail.com", "thandiwe.livedemo@example.test" })
+            {
+                await EnsureDemoRepositoryAndFirstInterviewAsync(db, email, competencies);
+                await SeedSecondDemoInterviewIfNeededAsync(db, email, competencies);
+                await SeedDemoPassportIfNeededAsync(db, email, competencies);
+            }
         }
+    }
+
+    private static async Task<CandidateProfile?> FindCandidateByEmailAsync(HerProofDbContext db, string email) =>
+        await (from cp in db.CandidateProfiles
+               join u in db.Users on cp.UserId equals u.Id
+               where u.Email == email
+               select cp).FirstOrDefaultAsync();
+
+    /// <summary>If this candidate has no repository at all yet, gives her the same showcase
+    /// repository + completed first interview Anko has (docs/05 P18's fallback data), so "My
+    /// interviews" and "My Passport" aren't empty for whichever account is being used to rehearse.</summary>
+    private static async Task EnsureDemoRepositoryAndFirstInterviewAsync(HerProofDbContext db, string email, Dictionary<string, Competency> competencies)
+    {
+        var candidateProfile = await FindCandidateByEmailAsync(db, email);
+        if (candidateProfile is null || await db.Repositories.AnyAsync(r => r.CandidateId == candidateProfile.Id))
+        {
+            return;
+        }
+
+        var juniorCSharpRole = await db.Opportunities.FirstOrDefaultAsync(o => o.Title == "Junior C# Developer");
+        if (juniorCSharpRole is null)
+        {
+            return;
+        }
+
+        SeedDemoRepositoryAndInterview(db, candidateProfile, juniorCSharpRole, competencies);
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>A real, documented demo verification decision (CLAUDE.md rule 1: evidence before
+    /// verification, by an Assessor) attributed to the seeded demo Assessor account, exactly like the
+    /// seeded demo interview's evaluations — so "My Passport" has something to show on first login
+    /// rather than a confusing blank page.</summary>
+    private static async Task SeedDemoPassportIfNeededAsync(HerProofDbContext db, string email, Dictionary<string, Competency> competencies)
+    {
+        var candidateProfile = await FindCandidateByEmailAsync(db, email);
+        var assessorUser = await db.Users.FirstOrDefaultAsync(u => u.Email == "assessor@demo.herproof.test");
+        if (candidateProfile is null || assessorUser is null)
+        {
+            return;
+        }
+
+        if (await db.SkillsPassports.AnyAsync(p => p.CandidateId == candidateProfile.Id))
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow.AddDays(-1);
+        var passport = PassportIssuanceService.EnsurePassport(null, candidateProfile.Id, now);
+        db.Add(passport);
+
+        foreach (var (competencyName, level) in new[] { ("C#", 2), ("OOP", 2), ("Git", 1) })
+        {
+            var record = VerificationDecisionService.Create(
+                actingUserIsAssessor: true, candidateProfile.Id, competencies[competencyName].Id, assessmentId: Guid.Empty,
+                finalLevel: level, assessorUser.Id, VerificationDecision.Verified,
+                $"Demo verification: {competencyName} demonstrated in anko-task-tracker and confirmed in interview.", now, supersedesId: null);
+            db.Add(record);
+
+            var candidateCompetency = await db.CandidateCompetencies
+                .FirstOrDefaultAsync(cc => cc.CandidateId == candidateProfile.Id && cc.CompetencyId == competencies[competencyName].Id);
+            if (candidateCompetency is null)
+            {
+                candidateCompetency = new CandidateCompetency(candidateProfile.Id, competencies[competencyName].Id, declaredLevel: null, now);
+                db.Add(candidateCompetency);
+            }
+
+            candidateCompetency.ApplyAssessorDecision(CandidateCompetencyStatus.Verified, level, now);
+
+            var slug = competencyName.Replace(" ", "").ToUpperInvariant();
+            var credential = PassportIssuanceService.IssueForVerification(passport, record, slug, now);
+            if (credential is not null)
+            {
+                db.Add(credential);
+            }
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedSecondDemoInterviewIfNeededAsync(HerProofDbContext db, string email, Dictionary<string, Competency> competencies)
+    {
+        var candidateProfile = await FindCandidateByEmailAsync(db, email);
+        if (candidateProfile is null)
+        {
+            return;
+        }
+
+        var existingInterviewCount = await db.Interviews.CountAsync(i => i.CandidateId == candidateProfile.Id);
+        if (existingInterviewCount >= 2)
+        {
+            return;
+        }
+
+        var repository = await db.Repositories.FirstOrDefaultAsync(r => r.CandidateId == candidateProfile.Id && r.RepositoryName == "AspNetCoreDiagnosticScenarios");
+        var internshipOpportunity = await db.Opportunities.FirstOrDefaultAsync(o => o.Title == "Software Internship");
+        if (repository is null || internshipOpportunity is null)
+        {
+            return;
+        }
+
+        var interview = new Interview(candidateProfile.Id, repository.Id, internshipOpportunity.Id, InterviewMode.Text, "Thandi", DateTime.UtcNow.AddDays(-1));
+
+        var gitQuestion = interview.AskQuestion(
+            competencies["Git"].Id,
+            "Your repository has a clean, incremental commit history. Walk me through how you decide when to make a new commit.",
+            "src/TaskService.cs", "1-45", questionOrder: 0);
+        var gitTurn = gitQuestion.AddTurn(TurnKind.Question, gitQuestion.QuestionText, DateTime.UtcNow.AddDays(-1).AddMinutes(2));
+        gitTurn.RecordAnswer(
+            "I commit whenever a single logical change is complete and the build still passes — usually one feature or one fix per commit, so the history reads as a changelog and I can revert just that piece if it turns out wrong.",
+            recordingReference: null, durationSeconds: 28);
+        gitTurn.ConfirmTranscript(gitTurn.TranscriptRaw!);
+        gitTurn.Evaluate(
+            Verdict.Understood,
+            "Describes atomic, logically-scoped commits tied to a passing build — a real working practice, not a rote definition.",
+            "{\"codeClaim\": \"incremental commit history\", \"answerMatches\": true}");
+
+        var problemSolvingQuestion = interview.AskQuestion(
+            competencies["Problem-solving"].Id,
+            "If a candidate task needed to support recurring due dates, how would you extend TaskService without breaking existing callers?",
+            "src/TaskService.cs", "12-18", questionOrder: 1);
+        var problemSolvingTurn = problemSolvingQuestion.AddTurn(TurnKind.Question, problemSolvingQuestion.QuestionText, DateTime.UtcNow.AddDays(-1).AddMinutes(5));
+        problemSolvingTurn.RecordAnswer(
+            "I'd add an optional recurrence parameter with a default of null so existing calls are unaffected, then branch inside CreateAsync to schedule the next occurrence only when it's set.",
+            recordingReference: null, durationSeconds: 24);
+        problemSolvingTurn.ConfirmTranscript(problemSolvingTurn.TranscriptRaw!);
+        problemSolvingTurn.Evaluate(
+            Verdict.Understood,
+            "Proposes an additive, backward-compatible signature change — a sound approach that doesn't disturb existing behaviour.",
+            "{\"codeClaim\": \"CreateAsync extension\", \"answerMatches\": true}");
+
+        interview.Complete(DateTime.UtcNow.AddDays(-1).AddMinutes(8));
+        interview.MarkAsDemoData();
+        db.Interviews.Add(interview);
+        await db.SaveChangesAsync();
     }
 
     private static async Task SeedRolesAsync(RoleManager<ApplicationRole> roleManager)
@@ -114,6 +262,13 @@ public static class DbSeeder
         {
             var user = await CreateDemoUserAsync(userManager, name, UserRole.Candidate);
             var profile = new CandidateProfile(user.Id);
+            // Profile completeness (RequireCompleteCandidateProfileFilter) gates browsing/applying
+            // for every Candidate, demo accounts included — without this they'd all bounce to
+            // /my-profile the moment the rehearsal tries to browse Opportunities.
+            profile.UpdateProfile(
+                province: "Gauteng", educationLevel: "Diploma", genderDeclared: "Woman",
+                householdIncomeBand: "Low", careerInterests: "Software development",
+                gitHubProfile: null, linkedInProfile: null);
             db.CandidateProfiles.Add(profile);
             candidateProfilesByName[name] = profile;
         }
@@ -125,7 +280,8 @@ public static class DbSeeder
 
         var employer = new Organisation("Demo Software Co.", "Technology", "https://example.test/democo");
         var bursaryProvider = new Organisation("Demo Bursary Trust", "Education Funding", "https://example.test/demotrust");
-        db.Organisations.AddRange(employer, bursaryProvider);
+        var cellCFoundation = new Organisation("Cell C Foundation", "Telecommunications", "https://example.test/cellcfoundation");
+        db.Organisations.AddRange(employer, bursaryProvider, cellCFoundation);
 
         db.OrganisationMembers.Add(new OrganisationMember(employer.Id, recruiterUser.Id, OrganisationRole.Recruiter));
         db.OrganisationMembers.Add(new OrganisationMember(bursaryProvider.Id, partnerUser.Id, OrganisationRole.Partner));
@@ -193,26 +349,78 @@ public static class DbSeeder
             "Open regardless of prior formal qualification.");
         careReturnersBursary.Publish();
 
-        db.Opportunities.AddRange(juniorCSharpRole, internshipRole, operationsRole, womenInTechBursary, careReturnersBursary);
+        var cellCGirlsBursary = new Opportunity(
+            cellCFoundation.Id,
+            "Cell C Girls Bursary",
+            "Covers tuition and a device for young women studying towards a technology qualification.",
+            OpportunityType.Bursary,
+            "South Africa",
+            DateTime.UtcNow.AddDays(90));
+        cellCGirlsBursary.RequireCompetency(competencies["Problem-solving"].Id, requiredLevel: 1, isMandatory: false);
+        cellCGirlsBursary.AddEligibilityRule(
+            EligibilityRuleType.GenderDeclared, EligibilityOperator.Equals, "Woman", isHardFilter: true,
+            "This bursary is reserved for women, per the funder's published criteria.");
+        cellCGirlsBursary.AddEligibilityRule(
+            EligibilityRuleType.AgeRange, EligibilityOperator.Between, "18-25", isHardFilter: false,
+            "Priority is given to applicants aged 18-25.");
+        cellCGirlsBursary.Publish();
+
+        db.Opportunities.AddRange(juniorCSharpRole, internshipRole, operationsRole, womenInTechBursary, careReturnersBursary, cellCGirlsBursary);
 
         SeedDemoRepositoryAndInterview(db, candidateProfilesByName["Anko"], juniorCSharpRole, competencies);
+        SeedLearningResources(db, competencies);
 
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>HP-032, closed: without these, the gap-to-proof engine's "here's how to close this
+    /// gap" recommendation had nothing to show out of the box in the demo data. Real, free resources
+    /// (Microsoft Learn/official docs), not placeholder links.</summary>
+    private static void SeedLearningResources(HerProofDbContext db, Dictionary<string, Competency> competencies)
+    {
+        (string CompetencyName, string Title, string Url, string CostType, int TargetLevel)[] resources =
+        [
+            ("Problem-solving", "SheCode Foundation", "https://www.shecodes.co.za/", "Free", 0),
+            ("C#", "C# documentation and tutorials", "https://learn.microsoft.com/dotnet/csharp/", "Free", 2),
+            ("OOP", "Object-oriented programming in C#", "https://learn.microsoft.com/dotnet/csharp/fundamentals/object-oriented/", "Free", 2),
+            ("Testing", "Unit testing C# with xUnit", "https://learn.microsoft.com/dotnet/core/testing/unit-testing-with-dotnet-test", "Free", 1),
+            ("Git", "Git and GitHub for beginners", "https://docs.github.com/get-started", "Free", 1),
+            ("Problem-solving", "Introduction to algorithmic thinking", "https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/", "Free", 1),
+            ("Project coordination", "Project management fundamentals", "https://learn.microsoft.com/training/paths/project-management-fundamentals/", "Free", 2),
+            ("Resource management", "Planning and managing resources", "https://learn.microsoft.com/training/modules/plan-manage-resources/", "Free", 1),
+        ];
+
+        foreach (var (competencyName, title, url, costType, targetLevel) in resources)
+        {
+            if (!competencies.TryGetValue(competencyName, out var competency))
+            {
+                continue;
+            }
+
+            db.LearningResources.Add(new LearningResource(competency.Id, title, url, costType, targetLevel));
+        }
     }
 
     /// <summary>docs/05 P18: a pre-analysed repository and pre-generated interview for Anko, so the
     /// demo has an instant, always-available fallback if the venue network or a live LLM call fails
     /// mid-rehearsal (docs/05 section 5's own fallback table). Both are marked IsDemoData so the UI
     /// shows "Demo data" rather than presenting cached results as freshly computed — CLAUDE.md's own
-    /// "never fake results silently".</summary>
+    /// "never fake results silently".
+    ///
+    /// The repository itself is a REAL, real public repo (davidfowl/AspNetCoreDiagnosticScenarios),
+    /// not a fictional placeholder URL — the completed interview's own Q&A below is still a scripted
+    /// "TaskService" narrative purely for display, but starting a brand NEW interview on this seeded
+    /// repository re-fetches live content from GitHub, and a fake URL would 404 every time (discovered
+    /// the hard way: this previously pointed at "demo-herproof/anko-task-tracker", which doesn't
+    /// exist).</summary>
     private static void SeedDemoRepositoryAndInterview(HerProofDbContext db, CandidateProfile anko, Opportunity juniorCSharpRole, Dictionary<string, Competency> competencies)
     {
         var repository = new Repository(
             anko.Id,
-            "anko-task-tracker",
-            "https://github.com/demo-herproof/anko-task-tracker",
-            "main",
-            "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+            "AspNetCoreDiagnosticScenarios",
+            "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios",
+            "master",
+            "bcc7ca394eeb7113da6b3071f738ee5361b67db3",
             RepositoryVisibility.Public,
             DateTime.UtcNow.AddDays(-2));
         db.Repositories.Add(repository);
@@ -221,28 +429,28 @@ public static class DbSeeder
         analysis.MarkInProgress();
 
         var csharpFinding = analysis.AddFinding(
-            competencies["C#"].Id, "LanguageUsage", "src/TaskService.cs", "12-40",
-            "Implements a TaskService class with async CRUD methods over EF Core.",
-            "public async Task<Models.TaskItem> CreateAsync(string title, DateTime dueAtUtc)",
+            competencies["C#"].Id, "LanguageUsage", "Scenarios/Controllers/AsyncVoidController.cs", "1-15",
+            "Demonstrates an async void action method and its exception-handling pitfalls.",
+            "public async void Get()",
             "High");
         var oopFinding = analysis.AddFinding(
-            competencies["OOP"].Id, "DesignPattern", "src/TaskService.cs", "5-10",
-            "TaskService depends on an injected ITaskRepository interface rather than a concrete type.",
-            "public TaskService(ITaskRepository repository)",
+            competencies["OOP"].Id, "DesignPattern", "Scenarios/PokemonDbContext.cs", "1-15",
+            "PokemonDbContext inherits from EF Core's DbContext base class, overriding its configuration.",
+            "public class PokemonDbContext : DbContext",
             "High");
         analysis.AddFinding(
-            competencies["Testing"].Id, "TestCoverage", "tests/TaskServiceTests.cs", "15-45",
-            "xUnit tests cover create, complete and overdue-task scenarios.",
-            "public async Task CreateAsync_sets_a_due_date()",
+            competencies["Error handling"].Id, "ErrorHandling", "Scenarios/Controllers/MemoryLeakController.cs", "1-15",
+            "Shows a controller action that leaks memory by holding a static reference with no cleanup path.",
+            "public class MemoryLeakController : Controller",
             "Medium");
 
         analysis.Complete(
-            technologiesDetectedJson: "[\"C#\", \"ASP.NET Core\", \"EF Core\", \"xUnit\"]",
-            summary: "A small task-tracking API: EF Core-backed service layer, interface-based dependencies, xUnit test coverage of the main flows.",
+            technologiesDetectedJson: "[\"C#\", \"ASP.NET Core\", \"EF Core\"]",
+            summary: "A collection of ASP.NET Core diagnostic scenarios: async/await pitfalls, EF Core DbContext usage, and common error-handling mistakes.",
             modelVersion: "demo-seed",
             promptVersion: "demo-seed",
             completedAtUtc: DateTime.UtcNow.AddDays(-2).AddMinutes(3));
-        analysis.RecordExecution(restoreOk: true, buildOk: true, testsPassed: 6, testsFailed: 0, logExcerpt: "Restored, built, 6 passed, 0 failed.", sandboxImageDigest: "demo-seed");
+        analysis.RecordExecution(restoreOk: true, buildOk: true, testsPassed: 0, testsFailed: 0, logExcerpt: "Restored and built, no tests present.", sandboxImageDigest: "demo-seed");
         analysis.MarkAsDemoData();
         db.RepositoryAnalyses.Add(analysis);
 

@@ -1,5 +1,6 @@
 using HerProof.Application.Notifications;
 using HerProof.Domain.Partnerships;
+using HerProof.Infrastructure.Notifications;
 using HerProof.Infrastructure.Persistence;
 using HerProof.Web.Models.Partnerships;
 using Microsoft.AspNetCore.Authorization;
@@ -47,19 +48,22 @@ public class PartnerController(HerProofDbContext db, IEmailSender emailSender, I
             await emailSender.SendAsync(
                 notifyEmail,
                 $"New partner inquiry: {model.OrganisationName}",
-                $"""
-                <p><strong>{System.Net.WebUtility.HtmlEncode(model.OrganisationName)}</strong> ({model.InquiryType})</p>
-                <p>Contact: {System.Net.WebUtility.HtmlEncode(model.ContactName)} &lt;{System.Net.WebUtility.HtmlEncode(model.ContactEmail)}&gt;{(string.IsNullOrWhiteSpace(model.Phone) ? "" : $" / {System.Net.WebUtility.HtmlEncode(model.Phone)}")}</p>
-                <p>{System.Net.WebUtility.HtmlEncode(model.Message)}</p>
-                """,
+                EmailTemplate.Plain(
+                    "New partner inquiry",
+                    $"""
+                    <p><strong>{System.Net.WebUtility.HtmlEncode(model.OrganisationName)}</strong> ({model.InquiryType})</p>
+                    <p>Contact: {System.Net.WebUtility.HtmlEncode(model.ContactName)} &lt;{System.Net.WebUtility.HtmlEncode(model.ContactEmail)}&gt;{(string.IsNullOrWhiteSpace(model.Phone) ? "" : $" / {System.Net.WebUtility.HtmlEncode(model.Phone)}")}</p>
+                    <p>{System.Net.WebUtility.HtmlEncode(model.Message)}</p>
+                    """),
                 cancellationToken);
         }
 
         await emailSender.SendAsync(
             model.ContactEmail,
             "Thanks for reaching out to HerProof",
-            $"<p>Hi {System.Net.WebUtility.HtmlEncode(model.ContactName)},</p>" +
-            "<p>Thanks for your interest in partnering with HerProof. A member of our team will be in touch shortly.</p>",
+            EmailTemplate.Plain(
+                "Thanks for reaching out",
+                $"<p>Hi {System.Net.WebUtility.HtmlEncode(model.ContactName)},</p><p>Thanks for your interest in partnering with HerProof. A member of our team will be in touch shortly.</p>"),
             cancellationToken);
 
         return View("ThankYou");

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HerProof.Application.Assessments;
 using HerProof.Domain.Assessments;
 using HerProof.Infrastructure.Persistence;
 using HerProof.Web.Models.Assessments;
@@ -38,6 +39,11 @@ public class AssessmentsController(HerProofDbContext db) : Controller
         }
 
         var assessment = new Assessment(model.Title, model.Description, model.AssessmentType, model.DurationMinutes, GetUserId());
+        if (string.Equals(model.AssessmentType, "C#", StringComparison.OrdinalIgnoreCase))
+        {
+            CSharpAssessmentQuestionTemplate.ApplyTo(assessment);
+        }
+
         db.Assessments.Add(assessment);
         await db.SaveChangesAsync(cancellationToken);
 
@@ -50,6 +56,7 @@ public class AssessmentsController(HerProofDbContext db) : Controller
         var assessment = await db.Assessments
             .Include(a => a.Competencies)
             .Include(a => a.RubricCriteria)
+            .Include(a => a.Questions)
             .FirstOrDefaultAsync(a => a.Id == assessmentId && a.CreatedBy == GetUserId(), cancellationToken);
         if (assessment is null)
         {

@@ -8,7 +8,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] — HerProof</title>
+    <title>@ViewData["Title"] - HerProof</title>
     <link rel="stylesheet" href="~/css/verify.css" asp-append-version="true" />
 </head>
 <body>
@@ -41,7 +41,7 @@
                             <span class="verify-badge">✓ @c.Status</span>
                         </div>
                         <p class="verify-credential-meta">
-                            Credential @c.CredentialIdentifier — issued @c.IssuedAtUtc.ToString("yyyy-MM-dd")
+                            Credential @c.CredentialIdentifier - issued @c.IssuedAtUtc.ToString("yyyy-MM-dd")
                             @(c.ValidUntilUtc is not null ? $", valid until {c.ValidUntilUtc:yyyy-MM-dd}" : "")
                         </p>
                     </div>
@@ -49,7 +49,7 @@
             }
         </div>
         <div class="verify-footer">
-            Verified via HerProof — an assessor-reviewed competency record.
+            Verified via HerProof - an assessor-reviewed competency record.
         </div>
     </div>
 </body>

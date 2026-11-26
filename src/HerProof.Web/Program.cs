@@ -51,6 +51,11 @@ try
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
 
+    // The practical assessment page posts integrity events as JSON (fetch(), not a form), so the
+    // antiforgery token travels as a header instead of a form field — same cookie-bound token,
+    // just a different place to carry it (docs/03 section 3 still applies in full).
+    builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+
     builder.Services.AddDbContext<HerProofDbContext>(options => options
         .UseNpgsql(builder.Configuration.GetConnectionString("Default"))
         .UseSnakeCaseNamingConvention()
@@ -110,17 +115,34 @@ try
     builder.Services.AddMemoryCache();
     builder.Services.AddHttpClient<IGitHubClient, GitHubClient>(client =>
     {
-        // docs/05 P07: public repos only for now, unauthenticated. GitHub requires a User-Agent.
+        // docs/05 P07: public repos only for now. GitHub requires a User-Agent. Unauthenticated
+        // requests are capped at 60/hour per IP — easily exhausted by a handful of repo submissions
+        // during rehearsal or a live demo — so an optional free personal access token (public read
+        // scope only, no cost) raises that to 5000/hour when configured (GitHub:Token).
         client.BaseAddress = new Uri("https://api.github.com/");
         client.DefaultRequestHeaders.UserAgent.ParseAdd("HerProof-Hackathon/1.0");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        // A single stalled request shouldn't block a candidate for the 100s HttpClient default, but
+        // GitHub's API can legitimately take several seconds per file under slow network — fail fast
+        // enough to show a "try again" message instead of hanging, without cutting off calls that
+        // would otherwise have succeeded.
+        client.Timeout = TimeSpan.FromSeconds(45);
+
+        var gitHubToken = builder.Configuration["GitHub:Token"];
+        if (!string.IsNullOrWhiteSpace(gitHubToken))
+        {
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", gitHubToken);
+        }
     });
     builder.Services.AddScoped<RepositoryContentFetcher>();
     builder.Services.AddSingleton<ISessionEventTokenService, HmacSessionEventTokenService>();
     builder.Services.AddSingleton<IStaticCodeAnalyzer, RoslynStaticCodeAnalyzer>();
     builder.Services.AddScoped<RepositoryAnalysisOrchestrator>();
     builder.Services.AddScoped(sp =>
-        new ThandiInterviewEngine(sp.GetRequiredService<IAIService>(), builder.Configuration["Interviewer:Name"] ?? "Thandi"));
+        new ThandiInterviewEngine(
+            sp.GetRequiredService<IAIService>(),
+            builder.Configuration["Interviewer:Name"] ?? "Thandi",
+            sp.GetRequiredService<ILogger<ThandiInterviewEngine>>()));
 
     var speechKey = builder.Configuration["Speech:Key"];
     var speechRegion = builder.Configuration["Speech:Region"];
@@ -251,7 +273,7 @@ try
         context.Response.Headers["X-Frame-Options"] = "DENY";
         context.Response.Headers["Referrer-Policy"] = "no-referrer";
         context.Response.Headers["Content-Security-Policy"] =
-            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'";
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'; img-src 'self' data:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'";
         // Microphone is allowed for this origin only (P11's voice interview, candidate-initiated,
         // consent-gated) — camera and geolocation stay denied; HerProof never uses either.
         context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=()";

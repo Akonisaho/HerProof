@@ -82,9 +82,14 @@ public class GitHubClientTests
     public async Task A_403_that_is_not_rate_limiting_is_not_swallowed_as_rate_limit()
     {
         // E.g. a private repo with no access: 403 but X-RateLimit-Remaining is absent or non-zero.
+        // HP-019, closed: this used to surface as an unhandled HttpRequestException (an unfriendly
+        // 500 to the candidate); it's now a GitHubApiException the controllers catch and turn into
+        // a plain-language message.
         var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.Forbidden));
 
-        await Assert.ThrowsAsync<HttpRequestException>(() => client.ResolveBranchToCommitShaAsync("anko", "private-repo", "main"));
+        var ex = await Assert.ThrowsAsync<GitHubApiException>(() => client.ResolveBranchToCommitShaAsync("anko", "private-repo", "main"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, ex.StatusCode);
     }
 
     [Fact]

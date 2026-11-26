@@ -42,7 +42,12 @@ public static class InterviewPromptBuilder
         builder.AppendLine("Cover at least: architecture, data access, error handling, and one free-choice ('pick a method you are proud of').");
         builder.AppendLine("Include at least one question about a weaker area, phrased constructively.");
         builder.AppendLine($"Required competencies for this opportunity: {string.Join(", ", requiredCompetencyNames)}.");
-        builder.AppendLine("Every question must cite a real snippet_file_path and snippet_lines from the evidence below — never invent one.");
+        builder.AppendLine("Every question must cite a real file path and line range from the evidence below in its snippetFilePath/snippetLines fields — never invent one.");
+        builder.AppendLine();
+        builder.AppendLine("Respond with ONLY a JSON object matching exactly this shape (same field names, same casing, every field present on every question):");
+        builder.AppendLine("""
+            {"questions": [{"competencyName": "C#", "text": "Walk me through what happens here.", "snippetFilePath": "src/Example.cs", "snippetLines": "10-20", "expectedPoints": ["point one", "point two"], "difficulty": 2}]}
+            """);
         builder.AppendLine();
         builder.AppendLine(DataBlockStart);
 
@@ -71,7 +76,12 @@ public static class InterviewPromptBuilder
         var builder = new StringBuilder();
         builder.AppendLine($"Question: {Neutralize(questionText)}");
         builder.AppendLine($"Snippet: {snippetFilePath}:{snippetLines}");
-        builder.AppendLine($"Probes so far: {probeCount} (maximum 3; if at 3, next_action must be move_on or finish_question, never probe).");
+        builder.AppendLine($"Probes so far: {probeCount} (maximum 3; if at 3, nextAction must be move_on or finish_question, never probe).");
+        builder.AppendLine();
+        builder.AppendLine("Respond with ONLY a JSON object matching exactly this shape (same field names, same casing, every field present):");
+        builder.AppendLine("""
+            {"verdictSoFar": "Partial", "coveredPoints": ["point one"], "missingPoints": ["point two"], "contradictions": [{"candidateSaid": "...", "codeShows": "...", "file": "...", "lines": "..."}], "nextAction": "move_on", "probeKind": null, "nextUtterance": "Thanks, let's move on.", "snippetFilePath": null, "snippetLines": null}
+            """);
         builder.AppendLine();
         builder.AppendLine(DataBlockStart);
         builder.AppendLine("--- CODE SNIPPET ---");

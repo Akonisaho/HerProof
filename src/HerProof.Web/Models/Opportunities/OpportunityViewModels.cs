@@ -20,6 +20,35 @@ public class CreateOpportunityViewModel
     [Display(Name = "Application deadline")]
     [DataType(DataType.Date)]
     public DateTime? DeadlineUtc { get; set; }
+
+    [Display(Name = "Salary (minimum)")]
+    [Range(0, double.MaxValue, ErrorMessage = "Salary cannot be negative.")]
+    public decimal? SalaryMin { get; set; }
+
+    [Display(Name = "Salary (maximum)")]
+    [Range(0, double.MaxValue, ErrorMessage = "Salary cannot be negative.")]
+    public decimal? SalaryMax { get; set; }
+
+    [Display(Name = "Years of experience required")]
+    [Range(0, 60, ErrorMessage = "Enter a realistic number of years.")]
+    public int? ExperienceYearsRequired { get; set; }
+}
+
+public class OpportunitySearchViewModel
+{
+    [Display(Name = "Search")]
+    public string? Q { get; set; }
+
+    public OpportunityType? Type { get; set; }
+
+    public string? Location { get; set; }
+
+    [Display(Name = "Max years of experience")]
+    [Range(0, 60)]
+    public int? MaxExperienceYears { get; set; }
+
+    [Display(Name = "Only show salary disclosed")]
+    public bool HasSalaryDisclosed { get; set; }
 }
 
 public class AddCompetencyRequirementViewModel
@@ -57,6 +86,12 @@ public class AddEligibilityRuleViewModel
     [Required]
     [Display(Name = "Explanation shown to the candidate")]
     public string Explanation { get; set; } = string.Empty;
+}
+
+public class OpportunityListItem
+{
+    public required Opportunity Opportunity { get; init; }
+    public required string OrganisationName { get; init; }
 }
 
 public class OrganisationOpportunityDetailViewModel

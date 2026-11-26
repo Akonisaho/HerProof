@@ -60,6 +60,12 @@ public class OrganisationOpportunitiesController(HerProofDbContext db, IResource
 
         var deadlineUtc = model.DeadlineUtc.HasValue ? DateTime.SpecifyKind(model.DeadlineUtc.Value, DateTimeKind.Utc) : (DateTime?)null;
         var opportunity = new Opportunity(organisationId, model.Title, model.Description, model.OpportunityType, model.Location, deadlineUtc);
+        opportunity.SetCompensationAndExperience(model.SalaryMin, model.SalaryMax, model.ExperienceYearsRequired);
+
+        // Published immediately on creation: a recruiter/partner can still Close it from the detail
+        // page, but there's no separate draft-review step to trip over during a live demo.
+        opportunity.Publish();
+
         db.Opportunities.Add(opportunity);
         await db.SaveChangesAsync(cancellationToken);
 
