@@ -13,7 +13,7 @@
 # real, read-only /home/runner - dotnet's first-time-use setup then tries to write its NuGet migration
 # lock file under that bogus HOME and fails before restore/build/test ever run.
 # Prefer a separate host. The platform must never mount the Docker socket into any container.
-FROM mcr.microsoft.com/dotnet/sdk:10.0
+FROM mcr.microsoft.com/dotnet/sdk:11.0
 RUN useradd -u 10001 -m runner
 WORKDIR /work
 
