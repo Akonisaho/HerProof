@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/TestResults/
+node_modules/
+electron-app/
+.git/
+.vs/
+.neon/
+*.log
+docker/sandbox-test-template.csproj

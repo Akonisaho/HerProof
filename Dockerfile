@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-COPY HerProof.sln ./
+COPY HerProof.sln Directory.Build.props global.json ./
 COPY src/HerProof.Domain/HerProof.Domain.csproj src/HerProof.Domain/
 COPY src/HerProof.Application/HerProof.Application.csproj src/HerProof.Application/
 COPY src/HerProof.AI/HerProof.AI.csproj src/HerProof.AI/
