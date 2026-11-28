@@ -9,6 +9,16 @@ public enum AssessmentStatus
     Archived,
 }
 
+/// <summary>Which real sandbox execution path a practical assessment's submission runs through -
+/// each value maps to its own Docker image and scaffold (AssessmentSandboxProjectScaffold), never a
+/// label with no real execution behind it (CLAUDE.md: never fake a feature). Defaults to CSharp so
+/// every assessment created before this field existed keeps behaving exactly as before.</summary>
+public enum AssessmentLanguage
+{
+    CSharp,
+    Java,
+}
+
 public class Assessment : Entity
 {
     private readonly List<AssessmentCompetency> _competencies = [];
@@ -21,6 +31,7 @@ public class Assessment : Entity
     public int DurationMinutes { get; private set; }
     public Guid CreatedBy { get; init; }
     public AssessmentStatus Status { get; private set; } = AssessmentStatus.Draft;
+    public AssessmentLanguage Language { get; private set; } = AssessmentLanguage.CSharp;
 
     public IReadOnlyCollection<AssessmentCompetency> Competencies => _competencies;
     public IReadOnlyCollection<RubricCriterion> RubricCriteria => _rubricCriteria;
@@ -33,13 +44,14 @@ public class Assessment : Entity
         AssessmentType = string.Empty;
     }
 
-    public Assessment(string title, string description, string assessmentType, int durationMinutes, Guid createdBy)
+    public Assessment(string title, string description, string assessmentType, int durationMinutes, Guid createdBy, AssessmentLanguage language = AssessmentLanguage.CSharp)
     {
         Title = title;
         Description = description;
         AssessmentType = assessmentType;
         DurationMinutes = durationMinutes;
         CreatedBy = createdBy;
+        Language = language;
     }
 
     public AssessmentCompetency CoverCompetency(Guid competencyId, decimal weight)
@@ -56,9 +68,9 @@ public class Assessment : Entity
         return criterion;
     }
 
-    public AssessmentQuestion AddQuestion(int order, string title, string prompt, string starterCode, string fileName, AssessmentQuestionType questionType)
+    public AssessmentQuestion AddQuestion(int order, string title, string prompt, string starterCode, string fileName, AssessmentQuestionType questionType, string? hiddenTestCode = null)
     {
-        var question = new AssessmentQuestion(Id, order, title, prompt, starterCode, fileName, questionType);
+        var question = new AssessmentQuestion(Id, order, title, prompt, starterCode, fileName, questionType, hiddenTestCode);
         _questions.Add(question);
         return question;
     }
@@ -87,6 +99,12 @@ public class AssessmentQuestion : Entity
     public string FileName { get; private set; }
     public AssessmentQuestionType QuestionType { get; private set; }
 
+    /// <summary>A real xUnit test file (never shown to the candidate) that exercises whatever she
+    /// implements in FileName - the only thing that makes "tests_ok" from the sandbox mean anything.
+    /// Null for a question nobody has authored an automated check for yet; the sandbox still runs,
+    /// it just can't prove correctness beyond "it builds."</summary>
+    public string? HiddenTestCode { get; private set; }
+
     private AssessmentQuestion()
     {
         Title = string.Empty;
@@ -95,7 +113,7 @@ public class AssessmentQuestion : Entity
         FileName = string.Empty;
     }
 
-    public AssessmentQuestion(Guid assessmentId, int order, string title, string prompt, string starterCode, string fileName, AssessmentQuestionType questionType)
+    public AssessmentQuestion(Guid assessmentId, int order, string title, string prompt, string starterCode, string fileName, AssessmentQuestionType questionType, string? hiddenTestCode = null)
     {
         AssessmentId = assessmentId;
         Order = order;
@@ -104,7 +122,10 @@ public class AssessmentQuestion : Entity
         StarterCode = starterCode;
         FileName = fileName;
         QuestionType = questionType;
+        HiddenTestCode = hiddenTestCode;
     }
+
+    public void SetHiddenTestCode(string hiddenTestCode) => HiddenTestCode = hiddenTestCode;
 }
 
 public class AssessmentCompetency : Entity

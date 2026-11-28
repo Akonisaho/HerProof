@@ -1,0 +1,83 @@
+@model HerProof.Web.Models.Verification.CandidateOverviewViewModel
+@{
+    ViewData["Title"] = "Candidate overview";
+
+    static string StatusPillClass(string status) => status switch
+    {
+        "Verified" => "status-pill status-pill-success",
+        "NotDemonstrated" => "status-pill status-pill-danger",
+        "Developing" or "EvidenceSubmitted" or "UnderAssessment" or "AssessmentCompleted" => "status-pill status-pill-warning",
+        _ => "status-pill",
+    };
+}
+
+<div class="hero-wrap hero-wrap-tight">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">Candidate overview</span>
+        <h1>@Model.CandidateName</h1>
+        <p class="opportunity-meta mb-0">Every competency she's touched, in one place, instead of one inbox row at a time.</p>
+    </div>
+</div>
+
+<section class="brand-section brand-section-tight">
+
+    <h2 class="h5 mb-3">Competencies (@Model.Competencies.Count)</h2>
+    @if (Model.Competencies.Count == 0)
+    {
+        <div class="brand-card">
+            <p class="mb-0 text-muted">No competency activity for this candidate yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2 mb-4">
+            @foreach (var c in Model.Competencies)
+            {
+                <a asp-action="EvidencePack" asp-route-candidateId="@Model.CandidateId" asp-route-competencyId="@c.CompetencyId"
+                   class="opportunity-card brand-card d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <strong>@c.CompetencyName</strong>
+                        <span class="opportunity-org d-block">
+                            Declared: @(c.DeclaredLevel?.ToString() ?? "-") &middot; Verified: @(c.VerifiedLevel?.ToString() ?? "-")
+                        </span>
+                    </div>
+                    <span class="@StatusPillClass(c.Status)">@c.Status</span>
+                </a>
+            }
+        </div>
+    }
+
+    <h2 class="h5 mb-3">
+        Skills Passport
+        @if (!string.IsNullOrWhiteSpace(Model.PassportNumber))
+        {
+            <span class="text-muted small fw-normal">&middot; @Model.PassportNumber</span>
+        }
+    </h2>
+    @if (Model.Credentials.Count == 0)
+    {
+        <div class="brand-card">
+            <p class="mb-0 text-muted">No Skills Passport issued yet - a credential appears here the moment her first competency is Verified.</p>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2">
+            @foreach (var cred in Model.Credentials)
+            {
+                <div class="brand-card d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <strong>@cred.CompetencyName</strong>
+                        <span class="opportunity-org d-block">
+                            Level @(cred.FinalLevel?.ToString() ?? "-") &middot; Issued @cred.IssuedAtUtc.ToString("yyyy-MM-dd")
+                        </span>
+                    </div>
+                    <span class="status-pill status-pill-success">@cred.CredentialStatus</span>
+                </div>
+            }
+        </div>
+    }
+
+</section>

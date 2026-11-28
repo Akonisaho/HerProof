@@ -4,6 +4,13 @@
     ViewData["Title"] = $"Applications - {Model.Opportunity.Title}";
     var organisationId = Model.Opportunity.OrganisationId;
     var opportunityId = Model.Opportunity.Id;
+
+    static string EligibilityBadge(EligibilityResult result) => result switch
+    {
+        EligibilityResult.Met => "status-pill status-pill-success",
+        EligibilityResult.NotMet => "status-pill status-pill-danger",
+        _ => "status-pill status-pill-warning",
+    };
 }
 
 <div class="hero-wrap">
@@ -16,7 +23,7 @@
     </div>
 </div>
 
-<section class="brand-section">
+<section class="brand-section brand-section-tight">
     <p><a asp-action="Details" asp-route-organisationId="@organisationId" asp-route-opportunityId="@opportunityId">← Back to opportunity</a></p>
 
     @if (Model.Applications.Count == 0)
@@ -56,10 +63,30 @@
                         <div class="text-muted small mt-2">No passport credentials attached.</div>
                     }
 
+                    @if (item.Eligibility is not null && item.Eligibility.Rules.Count > 0)
+                    {
+                        <div class="mt-2">
+                            <span class="text-muted small d-block mb-1">Eligibility</span>
+                            @foreach (var rule in item.Eligibility.Rules)
+                            {
+                                <span class="@EligibilityBadge(rule.Result) me-1 mb-1 d-inline-block" title="@rule.Explanation">
+                                    @rule.RuleType: @rule.Result@(rule.IsHardFilter ? " (required)" : "")
+                                </span>
+                            }
+                        </div>
+                    }
+
+                    @if (item.PassportCertificateUrl is not null)
+                    {
+                        <div class="mt-2">
+                            <a href="@item.PassportCertificateUrl" target="_blank" rel="noopener" class="btn-brand-outline btn-sm">View verified passport</a>
+                        </div>
+                    }
+
                     @if (item.Application.Status != CandidateApplicationStatus.Reviewed)
                     {
                         <form asp-action="MarkApplicationReviewed" asp-route-organisationId="@organisationId" asp-route-opportunityId="@opportunityId" asp-route-applicationId="@item.Application.Id" method="post" class="mt-2">
-                            <button type="submit" class="btn btn-sm btn-outline-secondary">Mark reviewed</button>
+                            <button type="submit" class="btn-brand-outline btn-sm">Mark reviewed</button>
                         </form>
                     }
                 </div>

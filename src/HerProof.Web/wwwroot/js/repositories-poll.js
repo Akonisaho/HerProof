@@ -1,5 +1,5 @@
 // Replaces "refresh the page manually" with a real spinner that polls until analysis finishes,
-// then reloads once so the full result (findings, summary, Thandi button) renders normally.
+// then reloads once so the full result (findings, summary, Nolwazi button) renders normally.
 (function () {
     const pendingCells = Array.from(document.querySelectorAll('.repo-status-cell')).filter((cell) =>
         cell.querySelector('.repo-status-spinner'));

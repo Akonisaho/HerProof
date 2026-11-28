@@ -14,7 +14,7 @@
 </div>
 
 <section class="brand-section">
-    <div class="brand-card" style="max-width: 640px;">
+    <div class="brand-card" style="max-width: 640px; margin: 0 auto;">
         <form asp-action="Create" method="post">
             <div asp-validation-summary="All" class="text-danger"></div>
             <div class="mb-3">
@@ -41,14 +41,14 @@
                 <div class="col-sm-6">
                     <label asp-for="SalaryMin" class="form-label"></label>
                     <div class="input-group">
-                        <span class="input-group-text">$</span>
+                        <span class="input-group-text">R</span>
                         <input asp-for="SalaryMin" class="form-control" placeholder="Leave blank for N/A" />
                     </div>
                 </div>
                 <div class="col-sm-6">
                     <label asp-for="SalaryMax" class="form-label"></label>
                     <div class="input-group">
-                        <span class="input-group-text">$</span>
+                        <span class="input-group-text">R</span>
                         <input asp-for="SalaryMax" class="form-control" placeholder="Leave blank for a single amount" />
                     </div>
                 </div>
@@ -61,4 +61,10 @@
             <button type="submit" class="btn-brand">Post opportunity</button>
         </form>
     </div>
+    <p class="text-center text-muted small mt-3" style="max-width: 640px; margin: 1rem auto 0;">
+        Want candidates to solve a real problem you set yourself? Once this is posted, its detail page
+        lets you <a asp-controller="Assessments" asp-action="Create">write your own practical
+        assessment</a> - your own prompt, your own starter code, and your own hidden test that actually
+        grades it - and attach it to this role.
+    </p>
 </section>

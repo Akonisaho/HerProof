@@ -99,6 +99,12 @@ public class OrganisationOpportunityDetailViewModel
     public required Opportunity Opportunity { get; init; }
     public required IReadOnlyList<(Guid Id, string Name)> AvailableCompetencies { get; init; }
     public required IReadOnlyDictionary<Guid, string> CompetencyNames { get; init; }
+
+    /// <summary>This recruiter/partner's own Published assessments - only a Published one can be
+    /// linked, so a candidate who clicks "take the test" never lands on something unfinished.</summary>
+    public required IReadOnlyList<(Guid Id, string Title, string AssessmentType, int DurationMinutes)> OwnPublishedAssessments { get; init; }
+
+    public (string Title, string AssessmentType, int DurationMinutes)? LinkedAssessment { get; init; }
 }
 
 /// <summary>Partner/recruiter review of one application (docs/05 P16): eligibility and the gap
@@ -109,10 +115,43 @@ public class ApplicationReviewItem
     public required CandidateApplication Application { get; init; }
     public required string CandidateName { get; init; }
     public required IReadOnlyList<(string CredentialIdentifier, string CompetencyName)> AttachedCredentials { get; init; }
+
+    /// <summary>The same public, read-only certificate page the candidate's own QR code opens — never a
+    /// direct view of her repositories, recordings, transcripts or scores (CLAUDE.md rule 9). Null until
+    /// she has a Skills Passport at all.</summary>
+    public string? PassportCertificateUrl { get; init; }
+
+    /// <summary>Null when the candidate's profile couldn't be resolved at all; an empty rule list
+    /// inside it (not null) means the opportunity simply has no eligibility rules to show.</summary>
+    public HerProof.Application.Opportunities.OpportunityEligibilitySummary? Eligibility { get; init; }
 }
 
 public class OrganisationApplicationsViewModel
 {
     public required Opportunity Opportunity { get; init; }
     public required IReadOnlyList<ApplicationReviewItem> Applications { get; init; }
+}
+
+/// <summary>The one landing page a Recruiter or Partner actually lands on - an overview across every
+/// opportunity they own, not one opportunity at a time.</summary>
+public class OrganisationDashboardViewModel
+{
+    public required Guid OrganisationId { get; init; }
+    public required string OrganisationName { get; init; }
+    public required bool IsBursaryPartner { get; init; }
+    public required int PublishedCount { get; init; }
+    public required int TotalOpportunityCount { get; init; }
+    public required int TotalPendingApplications { get; init; }
+    public required int ReachedOutCandidateCount { get; init; }
+    public required IReadOnlyList<OrganisationDashboardOpportunityRow> Opportunities { get; init; }
+}
+
+public class OrganisationDashboardOpportunityRow
+{
+    public required Guid OpportunityId { get; init; }
+    public required string Title { get; init; }
+    public required string OpportunityType { get; init; }
+    public required string Status { get; init; }
+    public required int TotalApplications { get; init; }
+    public required int PendingApplications { get; init; }
 }

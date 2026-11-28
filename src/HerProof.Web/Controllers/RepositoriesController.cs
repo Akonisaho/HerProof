@@ -169,10 +169,13 @@ public class RepositoriesController(HerProofDbContext db, IGitHubClient gitHubCl
         return RedirectToAction(nameof(Index));
     }
 
-    /// <summary>Tries the candidate-supplied branch first; if it 404s, looks up the repo's real
+    /// <summary>Tries the candidate-supplied branch first; if it fails, looks up the repo's real
     /// default branch and retries once before giving up. Handles the common case where the branch
     /// field was left at its "main" placeholder on a repo whose default branch is "master" (or
-    /// anything else) — without this, a perfectly real, public repo reads as "not found".</summary>
+    /// anything else) — without this, a perfectly real, public repo reads as "not found" or "invalid
+    /// branch name". GitHub is inconsistent about which status code a nonexistent ref gets on the
+    /// commits/{ref} endpoint — sometimes 404 (GitHubNotFoundException), sometimes 422
+    /// Unprocessable Entity (GitHubApiException) — so both trigger the same fallback.</summary>
     private async Task<(string CommitSha, string Branch)> ResolveCommitShaWithBranchFallbackAsync(
         string owner, string repoName, string requestedBranch, CancellationToken cancellationToken)
     {
@@ -181,7 +184,8 @@ public class RepositoriesController(HerProofDbContext db, IGitHubClient gitHubCl
             var sha = await gitHubClient.ResolveBranchToCommitShaAsync(owner, repoName, requestedBranch, cancellationToken);
             return (sha, requestedBranch);
         }
-        catch (GitHubNotFoundException)
+        catch (Exception ex) when (ex is GitHubNotFoundException
+            || (ex is GitHubApiException apiEx && apiEx.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity))
         {
             var defaultBranch = await gitHubClient.GetDefaultBranchAsync(owner, repoName, cancellationToken);
             var sha = await gitHubClient.ResolveBranchToCommitShaAsync(owner, repoName, defaultBranch, cancellationToken);

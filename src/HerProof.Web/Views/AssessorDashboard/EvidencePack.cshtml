@@ -5,7 +5,6 @@
     ViewData["Title"] = "Evidence pack";
     var candidateId = (Guid)ViewBag.CandidateId;
     var competencyId = (Guid)ViewBag.CompetencyId;
-    var contributorStatuses = ViewBag.RepositoryContributorStatuses as List<ContributorVerificationStatus> ?? [];
 
     static string SuggestionBadge(AiSuggestion s) => s switch
     {
@@ -15,19 +14,29 @@
         _ => "badge bg-light text-dark border",
     };
 
-    static (string Class, string Label) ContributorBadge(ContributorVerificationStatus status) => status switch
+    static (string Class, string Label) ContributorBadge(string status) => status switch
     {
-        ContributorVerificationStatus.Confirmed => ("badge bg-success", "✓ Contributor confirmed"),
-        ContributorVerificationStatus.NotConfirmed => ("badge bg-warning text-dark", "Contributor not confirmed"),
+        "Confirmed" => ("badge bg-success", "✓ Contributor confirmed"),
+        "NotConfirmed" => ("badge bg-warning text-dark", "Contributor not confirmed"),
         _ => ("badge bg-light text-dark border", "Contributor not checked"),
     };
+
+    // Not an automatic judgement - just making the existing, already-honest event list easier to
+    // scan: a "lost" event is worth a second look, its matching "regained/restored/connected"
+    // recovery is routine. There is no video content analysis anywhere in this list at all - only
+    // tab-focus, network and camera/mic *presence*, never what a camera actually shows.
+    var flaggedEventTypes = new HashSet<string> { "focus_lost", "network_lost", "camera_disconnected", "microphone_disconnected" };
+    const int FindingsPreviewCount = 5;
+    const int IntegrityPreviewCount = 5;
+    const int SubmissionsPreviewCount = 3;
 }
 
 <div class="hero-wrap">
     <div class="hero-blob hero-blob-1"></div>
     <div class="hero-blob hero-blob-2"></div>
     <div class="hero hero-compact">
-        <span class="hero-eyebrow">Evidence pack</span>
+        <a asp-action="CandidateOverview" asp-route-candidateId="@candidateId" class="hero-eyebrow text-decoration-none d-inline-block mb-1">&larr; All of @Model.CandidateName's assessments</a>
+        <span class="hero-eyebrow d-block">Evidence pack</span>
         <h1>@Model.CandidateName - @Model.CompetencyName</h1>
         <p class="opportunity-meta mb-0">
             Declared level: @(Model.DeclaredLevel?.ToString() ?? "not declared") ·
@@ -37,62 +46,140 @@
     </div>
 </div>
 
-<section class="brand-section">
-
-@if ((bool?)ViewBag.IsDemoData == true)
-{
-    <div class="alert alert-info">Demo data - some evidence here is a pre-seeded fallback, not freshly
-        computed.</div>
-}
+<section class="brand-section brand-section-tight">
 
 <div class="brand-card mb-3">
     <strong>AI suggestion (not a decision):</strong>
     <span class="@SuggestionBadge(Model.AiSuggestion)">@Model.AiSuggestion</span>
  - derived from repository evidence and interview verdicts only. An assessor makes the actual call below.
 
-    @if (contributorStatuses.Count > 0)
+    @if (Model.RelevantRepositories.Count > 0)
     {
-        <p class="mt-2 mb-0">
-            Repository contributor check:
-            @foreach (var status in contributorStatuses)
+        <div class="mt-3 pt-3" style="border-top: 1px solid var(--brand-pink-border, #f3c6d9);">
+            <strong class="d-block mb-2">Repositor@(Model.RelevantRepositories.Count == 1 ? "y" : "ies") behind this evidence</strong>
+            @foreach (var repo in Model.RelevantRepositories)
             {
-                var (badgeClass, label) = ContributorBadge(status);
-                <span class="@badgeClass">@label</span>
+                var (badgeClass, label) = ContributorBadge(repo.ContributorStatus);
+                <p class="mb-1">
+                    <a href="@repo.RepositoryUrl" target="_blank" rel="noopener">@repo.RepositoryName</a>
+                    <span class="text-muted small">(@repo.Branch, @repo.Visibility)</span>
+                    <span class="@badgeClass">@label</span>
+                </p>
             }
-        </p>
+        </div>
     }
 </div>
 
 <div class="row g-4">
     <div class="col-md-6">
         <div class="brand-card h-100">
-            <h3>Repository findings</h3>
+            <h3>Repository findings (@Model.RepositoryFindings.Count)</h3>
             <ul class="mb-0">
-                @foreach (var f in Model.RepositoryFindings)
+                @foreach (var f in Model.RepositoryFindings.Take(FindingsPreviewCount))
                 {
-                    <li>@f.FilePath:@f.LineReference - @f.Description (@f.Confidence confidence)</li>
+                    var link = Model.FindingSourceLinks.GetValueOrDefault(f.Id);
+                    <li class="small mb-1">
+                        @if (link is not null)
+                        {
+                            <a href="@link" target="_blank" rel="noopener"><code>@f.FilePath:@f.LineReference</code></a>
+                        }
+                        else
+                        {
+                            <code>@f.FilePath:@f.LineReference</code>
+                        }
+                        - @f.Description (@f.Confidence confidence)
+                    </li>
                 }
             </ul>
+            @if (Model.RepositoryFindings.Count > FindingsPreviewCount)
+            {
+                <details class="mt-1">
+                    <summary class="read-more-toggle">Show all @Model.RepositoryFindings.Count findings</summary>
+                    <ul class="mb-0 mt-2">
+                        @foreach (var f in Model.RepositoryFindings.Skip(FindingsPreviewCount))
+                        {
+                            var link = Model.FindingSourceLinks.GetValueOrDefault(f.Id);
+                            <li class="small mb-1">
+                                @if (link is not null)
+                                {
+                                    <a href="@link" target="_blank" rel="noopener"><code>@f.FilePath:@f.LineReference</code></a>
+                                }
+                                else
+                                {
+                                    <code>@f.FilePath:@f.LineReference</code>
+                                }
+                                - @f.Description (@f.Confidence confidence)
+                            </li>
+                        }
+                    </ul>
+                </details>
+            }
         </div>
     </div>
     <div class="col-md-6">
         <div class="brand-card h-100">
             <h3>Execution (sandbox)</h3>
-            <ul class="mb-0">
-                @foreach (var e in Model.ExecutionReports)
+            @if (Model.ExecutionReports.Count == 0)
+            {
+                <p class="small text-muted mb-0">No execution yet.</p>
+            }
+            else
+            {
+                var latest = Model.ExecutionReports[0];
+                <p class="small text-muted mb-1">Most recent attempt</p>
+                <p class="small mb-2">
+                    Restore: <strong>@latest.RestoreOk</strong> &middot;
+                    Build: <strong>@latest.BuildOk</strong> &middot;
+                    Tests passed: <strong>@latest.TestsPassed</strong>, failed: <strong>@latest.TestsFailed</strong>
+                </p>
+                @if (!string.IsNullOrWhiteSpace(latest.LogExcerpt))
                 {
-                    <li>Restore: @e.RestoreOk, Build: @e.BuildOk, Tests passed: @e.TestsPassed, failed: @e.TestsFailed - @e.LogExcerpt</li>
+                    <pre class="code-view mb-2" style="max-height: 12rem;">@latest.LogExcerpt</pre>
                 }
-            </ul>
+
+                var earlier = Model.ExecutionReports.Skip(1).ToList();
+                @if (earlier.Count > 0)
+                {
+                    <details>
+                        <summary class="read-more-toggle">Show @earlier.Count earlier attempt@(earlier.Count == 1 ? "" : "s")</summary>
+                        <div class="mt-2">
+                            @foreach (var e in earlier)
+                            {
+                                <p class="small mb-1">
+                                    Restore: <strong>@e.RestoreOk</strong> &middot;
+                                    Build: <strong>@e.BuildOk</strong> &middot;
+                                    Tests passed: <strong>@e.TestsPassed</strong>, failed: <strong>@e.TestsFailed</strong>
+                                </p>
+                                @if (!string.IsNullOrWhiteSpace(e.LogExcerpt))
+                                {
+                                    <pre class="code-view mb-3" style="max-height: 10rem;">@e.LogExcerpt</pre>
+                                }
+                            }
+                        </div>
+                    </details>
+                }
+            }
         </div>
     </div>
 </div>
 
-<h3 class="mt-4">Interview (Thandi) - code beside answer</h3>
+<h3 class="mt-4">Interview (Nolwazi) - code beside answer</h3>
 @foreach (var (question, turn) in Model.InterviewTurns)
 {
+    var questionLink = Model.QuestionSourceLinks.GetValueOrDefault(question.Id);
     <div class="brand-card mb-2">
-        <p><strong>@question.QuestionText</strong> (<code>@question.SnippetFilePath</code>:@question.SnippetLines)</p>
+        <p>
+            <strong>@question.QuestionText</strong>
+            (@if (questionLink is not null)
+            {
+                <a href="@questionLink" target="_blank" rel="noopener"><code>@question.SnippetFilePath</code>:@question.SnippetLines</a>
+            }
+            else
+            {
+                <code>@question.SnippetFilePath</code>
+                @(":" + question.SnippetLines)
+            })
+        </p>
         <div class="row">
             <div class="col-md-6"><strong>Candidate's answer</strong><p class="small">@turn.TranscriptConfirmed</p></div>
             <div class="col-md-6"><strong>Verdict</strong><p class="small">@turn.Evaluation!.Verdict - @turn.Evaluation.EvidenceSummary</p></div>
@@ -104,23 +191,95 @@
     <div class="col-md-4">
         <div class="brand-card h-100">
             <h3>Practical assessment reviews</h3>
-            <ul class="mb-0">
-                @foreach (var r in Model.AssessmentReviews)
+            @if (Model.AssessmentReviews.Count > 0)
+            {
+                <ul class="mb-3">
+                    @foreach (var r in Model.AssessmentReviews)
+                    {
+                        <li>@r.ReviewStatus - @r.Feedback</li>
+                    }
+                </ul>
+            }
+
+            @if (Model.PendingSubmissions.Count == 0)
+            {
+                <p class="small text-muted mb-0">Nothing waiting on your review.</p>
+            }
+            else
+            {
+                var first = Model.PendingSubmissions.Take(SubmissionsPreviewCount);
+                var rest = Model.PendingSubmissions.Skip(SubmissionsPreviewCount).ToList();
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var s in first)
+                    {
+                        <a asp-controller="AssessorDashboard" asp-action="ReviewSubmission" asp-route-submissionId="@s.SubmissionId"
+                           class="submission-row text-decoration-none text-reset">
+                            <span class="d-block small text-muted">@s.SubmittedAtUtc.ToString("d MMM yyyy HH:mm")</span>
+                            <span class="d-block">@s.AutomatedSummary</span>
+                            <span class="btn-brand-outline btn-sm mt-1">Review submitted code</span>
+                        </a>
+                    }
+                </div>
+                @if (rest.Count > 0)
                 {
-                    <li>@r.ReviewStatus - @r.Feedback</li>
+                    <details class="mt-2">
+                        <summary class="read-more-toggle">Show @rest.Count earlier submission@(rest.Count == 1 ? "" : "s")</summary>
+                        <div class="d-flex flex-column gap-2 mt-2">
+                            @foreach (var s in rest)
+                            {
+                                <a asp-controller="AssessorDashboard" asp-action="ReviewSubmission" asp-route-submissionId="@s.SubmissionId"
+                                   class="submission-row text-decoration-none text-reset">
+                                    <span class="d-block small text-muted">@s.SubmittedAtUtc.ToString("d MMM yyyy HH:mm")</span>
+                                    <span class="d-block">@s.AutomatedSummary</span>
+                                    <span class="btn-brand-outline btn-sm mt-1">Review submitted code</span>
+                                </a>
+                            }
+                        </div>
+                    </details>
                 }
-            </ul>
+            }
         </div>
     </div>
     <div class="col-md-4">
         <div class="brand-card h-100">
-            <h3>Integrity timeline</h3>
-            <ul class="mb-0">
-                @foreach (var e in Model.IntegrityTimeline)
+            <h3>Integrity timeline (@Model.IntegrityTimeline.Count)</h3>
+            <p class="text-muted small mb-2">
+                Tab focus, network and camera/mic presence only - never what a camera shows. A flagged
+                event is never an automatic judgement, just worth a second look.
+            </p>
+            @if (Model.IntegrityTimeline.Count == 0)
+            {
+                <p class="small text-muted mb-0">No events recorded.</p>
+            }
+            else
+            {
+                <ul class="list-unstyled mb-0">
+                    @foreach (var e in Model.IntegrityTimeline.Take(IntegrityPreviewCount))
+                    {
+                        var isFlagged = flaggedEventTypes.Contains(e.EventType);
+                        <li class="small mb-1 d-flex align-items-center">
+                            <span class="integrity-flag-dot @(isFlagged ? "is-flagged" : "is-normal")" aria-hidden="true"></span>
+                            @e.OccurredAtUtc.ToString("u") - @e.EventType
+                        </li>
+                    }
+                </ul>
+                @if (Model.IntegrityTimeline.Count > IntegrityPreviewCount)
                 {
-                    <li>@e.OccurredAtUtc.ToString("u") - @e.EventType</li>
+                    <details class="mt-1">
+                        <summary class="read-more-toggle">Show all @Model.IntegrityTimeline.Count events</summary>
+                        <ul class="list-unstyled mb-0 mt-2">
+                            @foreach (var e in Model.IntegrityTimeline.Skip(IntegrityPreviewCount))
+                            {
+                                var isFlagged = flaggedEventTypes.Contains(e.EventType);
+                                <li class="small mb-1 d-flex align-items-center">
+                                    <span class="integrity-flag-dot @(isFlagged ? "is-flagged" : "is-normal")" aria-hidden="true"></span>
+                                    @e.OccurredAtUtc.ToString("u") - @e.EventType
+                                </li>
+                            }
+                        </ul>
+                    </details>
                 }
-            </ul>
+            }
         </div>
     </div>
     <div class="col-md-4">

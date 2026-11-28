@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HerProof.Application.AI;
 using HerProof.Application.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace HerProof.AI;
 
@@ -18,7 +19,7 @@ public record RepositoryAnalysisResult(
 /// <summary>Ties together the whole P08 pipeline: redact -> Roslyn (deterministic) -> LLM
 /// (judgement) -> verify every LLM reference against the pinned commit -> combine. ADR-09: Roslyn
 /// anchors the LLM; the LLM's claims never reach a finding unless FindingVerification confirms them.</summary>
-public class RepositoryAnalysisOrchestrator(IAIService aiService, IStaticCodeAnalyzer staticAnalyzer)
+public class RepositoryAnalysisOrchestrator(IAIService aiService, IStaticCodeAnalyzer staticAnalyzer, ILogger<RepositoryAnalysisOrchestrator>? logger = null)
 {
     public const string PromptVersion = "repo-analysis-v1";
 
@@ -70,8 +71,12 @@ public class RepositoryAnalysisOrchestrator(IAIService aiService, IStaticCodeAna
         {
             completion = await aiService.CompleteJsonAsync(systemPrompt, userContent, PromptVersion, cancellationToken);
         }
-        catch (Exception) when (cancellationToken.IsCancellationRequested == false)
+        catch (Exception ex) when (cancellationToken.IsCancellationRequested == false)
         {
+            // Confirmed live: a larger repository (many files) can produce a prompt that exceeds the
+            // configured provider's own request-size limit (seen as a 413 from Groq's free tier) -
+            // logged so this is diagnosable, not silently indistinguishable from a transient outage.
+            logger?.LogWarning(ex, "Repository analysis AI call failed; falling back to static-analysis-only evidence.");
             return null; // Provider error: treated the same as invalid output — fail safe, let the caller retry/stop.
         }
 
@@ -81,6 +86,7 @@ public class RepositoryAnalysisOrchestrator(IAIService aiService, IStaticCodeAna
             var dto = JsonSerializer.Deserialize<LlmAnalysisDto>(normalizedJson, JsonOptions);
             if (dto?.Findings is null)
             {
+                logger?.LogWarning("Repository analysis AI response was missing a Findings array; falling back to static-analysis-only evidence.");
                 return null;
             }
 
@@ -91,8 +97,9 @@ public class RepositoryAnalysisOrchestrator(IAIService aiService, IStaticCodeAna
 
             return (completion, dto.Summary ?? string.Empty, dto.TechnologiesDetected ?? [], findings);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            logger?.LogWarning(ex, "Repository analysis AI response was not valid JSON; falling back to static-analysis-only evidence.");
             return null;
         }
     }

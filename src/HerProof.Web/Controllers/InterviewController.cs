@@ -16,11 +16,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace HerProof.Web.Controllers;
 
-/// <summary>Thandi (docs/05 P10/P11, docs/06): text-first rubric and question/probe engine, with a
+/// <summary>Nolwazi (docs/05 P10/P11, docs/06): text-first rubric and question/probe engine, with a
 /// voice layer (consent screen, browser mic capture, server-side STT/TTS) sitting on top of the exact
 /// same evaluation path — a confirmed transcript is a confirmed transcript regardless of how it got
 /// typed into the box.</summary>
@@ -31,9 +32,10 @@ namespace HerProof.Web.Controllers;
 public class InterviewController(
     HerProofDbContext db,
     RepositoryContentFetcher contentFetcher,
-    ThandiInterviewEngine thandiEngine,
+    NolwaziInterviewEngine thandiEngine,
     ISpeechToText speechToText,
     ITextToSpeech textToSpeech,
+    IConfiguration configuration,
     ILogger<InterviewController> logger) : Controller
 {
     private const string VoiceConsentPurpose = "voice-interview";
@@ -188,18 +190,26 @@ public class InterviewController(
 
         if (questions.Count == 0)
         {
-            TempData["InterviewMessage"] = "Thandi couldn't generate questions from this repository yet. Try again shortly.";
+            TempData["InterviewMessage"] = "Nolwazi couldn't generate questions from this repository yet. Try again shortly.";
             return RedirectToAction(nameof(RepositoriesController.Index), "Repositories");
         }
 
         var competencyIdsByName = competencyNames.ToDictionary(kv => kv.Value, kv => kv.Key, StringComparer.OrdinalIgnoreCase);
-        var interview = new Interview(candidateId.Value, repositoryId, opportunityId, mode, "Thandi", DateTime.UtcNow);
+        var interviewerName = configuration["Interviewer:Name"] ?? "Nolwazi";
+        var interview = new Interview(candidateId.Value, repositoryId, opportunityId, mode, interviewerName, DateTime.UtcNow);
 
         var order = 0;
         foreach (var q in questions)
         {
             if (!competencyIdsByName.TryGetValue(q.CompetencyName, out var competencyId))
             {
+                // Confirmed live: a model can still invent a competencyName that isn't a real one
+                // (e.g. "Architecture" instead of a real competency from the required list) despite
+                // the prompt now telling it not to - this used to drop the question with no trace at
+                // all, silently shrinking the interview to fewer questions than were actually generated.
+                logger.LogWarning(
+                    "Nolwazi question dropped at interview start: competencyName {CompetencyName} does not match any real competency.",
+                    q.CompetencyName);
                 continue;
             }
 
@@ -247,7 +257,12 @@ public class InterviewController(
 
         ViewBag.Question = question;
         ViewBag.Interview = interview;
-        return View(new SubmitAnswerViewModel { TurnId = turn!.Id });
+        // Named explicitly, not a bare View(model): Answer() calls this method directly (not through
+        // the MVC action pipeline) when ModelState is invalid, and a bare View() resolves against the
+        // ALREADY-EXECUTING action's name ("Answer"), not this method's name - confirmed live, this
+        // crashed every single time with "The view 'Answer' was not found" whenever an answer failed
+        // validation (e.g. a blank submission), which looked like "submit does nothing" to the candidate.
+        return View("Take", new SubmitAnswerViewModel { TurnId = turn!.Id });
     }
 
     [HttpPost("{interviewId:guid}/answer")]
@@ -267,16 +282,19 @@ public class InterviewController(
         }
 
         var question = interview.Questions.FirstOrDefault(q => q.Turns.Any(t => t.Id == model.TurnId));
-        var turn = question?.Turns.FirstOrDefault(t => t.Id == model.TurnId);
-        if (question is null || turn is null)
+        var promptTurn = question?.Turns.FirstOrDefault(t => t.Id == model.TurnId);
+        if (question is null || promptTurn is null)
         {
             return NotFound();
         }
 
+        // Append-only (CLAUDE.md rule 8): promptTurn was already persisted in Take and may never be
+        // mutated, so the answer is recorded on a brand-new turn instead of editing it in place.
         // Text mode: typed input is both the raw and confirmed transcript (docs/06 section 9 point 7 —
         // no STT, so there is nothing to correct).
-        turn.RecordAnswer(model.Answer, recordingReference: null, durationSeconds: 0);
+        var turn = question.RecordAnswerTurn(promptTurn, model.Answer, recordingReference: null, durationSeconds: 0, DateTime.UtcNow);
         turn.ConfirmTranscript(model.Answer);
+        db.Add(turn);
 
         var repository = await db.Repositories.AsNoTracking().FirstAsync(r => r.Id == interview.RepositoryId, cancellationToken);
         var parsed = GitHubRepositoryUrlParser.TryParse(repository.RepositoryUrl)!.Value;
@@ -288,21 +306,34 @@ public class InterviewController(
         }
         catch (GitHubRateLimitException ex)
         {
-            // Never lose the candidate's answer on a transient GitHub problem: it's already recorded
-            // above. Let her retry the evaluation step shortly.
-            TempData["InterviewMessage"] = $"GitHub is rate-limiting us right now. Your answer was saved — try again in about {ex.RetryAfter.TotalMinutes:F0} minute(s).";
+            // Confirmed live: leaving this turn unevaluated here (the previous behaviour) traps the
+            // candidate in an unbreakable loop - Take() re-shows this same unevaluated turn's copied
+            // prompt text as if it were the current question (with no visible error, since
+            // TempData["InterviewMessage"] is only ever rendered on the Repositories page, not here),
+            // she resubmits, GitHub is still rate-limited, and it repeats forever with no way to ever
+            // reach a probe or finish the interview. Evaluate it as Partial instead - same fail-safe
+            // pattern as a null AI result below - so the interview always keeps moving.
+            turn.Evaluate(Verdict.Partial, $"Could not be verified against the repository right now (GitHub rate limit, retry in about {ex.RetryAfter.TotalMinutes:F0} minute(s)); recorded as Partial for assessor review.", "{}");
             await db.SaveChangesAsync(cancellationToken);
             return RedirectToAction(nameof(Take), new { interviewId });
         }
         catch (Exception ex) when (ex is GitHubNotFoundException or GitHubApiException)
         {
-            // Same reasoning as the rate-limit case above: the candidate's answer is already saved.
-            TempData["InterviewMessage"] = "GitHub couldn't be reached to continue the interview. Your answer was saved — try again shortly.";
+            turn.Evaluate(Verdict.Partial, "Could not be verified against the repository right now (GitHub was unreachable); recorded as Partial for assessor review.", "{}");
+            await db.SaveChangesAsync(cancellationToken);
+            return RedirectToAction(nameof(Take), new { interviewId });
+        }
+        catch (Exception ex) when (ex is TaskCanceledException or TimeoutException or HttpRequestException)
+        {
+            // Same reasoning as the typed GitHub exceptions above, for a plain network drop/timeout
+            // that isn't wrapped in one of them (see StartInterviewAsync's matching catch).
+            logger.LogWarning(ex, "Transient network failure fetching repository content for interview answer evaluation.");
+            turn.Evaluate(Verdict.Partial, "Could not be verified against the repository right now (network timeout); recorded as Partial for assessor review.", "{}");
             await db.SaveChangesAsync(cancellationToken);
             return RedirectToAction(nameof(Take), new { interviewId });
         }
 
-        var probeCount = question.Turns.Count(t => t.TurnKind == TurnKind.Probe);
+        var probeCount = question.ProbePromptCount();
         var snippetContent = content.Files.FirstOrDefault(f => f.Path == question.SnippetFilePath)?.Content ?? string.Empty;
 
         var result = await thandiEngine.EvaluateTurnAsync(
@@ -360,6 +391,29 @@ public class InterviewController(
         return RedirectToAction(nameof(Take), new { interviewId });
     }
 
+    /// <summary>An interview is one sitting, not a draft: there is no "resume later". The Take page
+    /// sends this via navigator.sendBeacon on tab close/navigation-away, and the candidate list page
+    /// never links back into an in-progress interview, so once left, it's left for good.</summary>
+    [HttpPost("{interviewId:guid}/abandon")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Abandon(Guid interviewId, CancellationToken cancellationToken)
+    {
+        var candidateId = await GetCandidateProfileIdAsync(cancellationToken);
+        var interview = await LoadInterviewAsync(interviewId, candidateId, cancellationToken);
+        if (interview is null)
+        {
+            return NotFound();
+        }
+
+        if (interview.Status == InterviewStatus.InProgress)
+        {
+            interview.Abandon();
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return Ok();
+    }
+
     /// <summary>Browser records an answer, posts the raw audio here, gets back a transcript to review
     /// and correct before it's ever submitted (docs/05 P11: "transcript review and correction before
     /// scoring"). The audio itself is never written to disk or any store — it exists only for the
@@ -402,7 +456,7 @@ public class InterviewController(
         return Json(new { transcript = result.Text });
     }
 
-    /// <summary>Thandi's spoken prompt, synthesised server-side (ADR-05: the key never reaches the
+    /// <summary>Nolwazi's spoken prompt, synthesised server-side (ADR-05: the key never reaches the
     /// browser) and cached by CachingTextToSpeech. 204 (no audio) tells the browser to fall back to
     /// its own built-in speech synthesis instead.</summary>
     [HttpGet("{interviewId:guid}/turns/{turnId:guid}/prompt-audio")]
@@ -436,7 +490,9 @@ public class InterviewController(
         }
 
         var competencyNames = await db.Competencies.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Name, cancellationToken);
+        var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!), cancellationToken);
         ViewBag.CompetencyNames = competencyNames;
+        ViewBag.CandidateName = user.FullName;
         return View(interview);
     }
 
@@ -452,7 +508,15 @@ public class InterviewController(
 
         var user = await db.Users.AsNoTracking().FirstAsync(u => u.Id == Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!), cancellationToken);
         var competencyNames = await db.Competencies.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Name, cancellationToken);
-        var pdfBytes = InterviewReportPdfExporter.Export(user.FullName, interview, competencyNames);
+
+        string? verifyUrl = null;
+        if (interview.Status == InterviewStatus.Completed)
+        {
+            var token = InterviewCertificateToken.Generate(interview.Id, configuration);
+            verifyUrl = Url.Action(nameof(InterviewCertificateController.Show), "InterviewCertificate", new { interviewId = interview.Id, token }, Request.Scheme);
+        }
+
+        var pdfBytes = InterviewReportPdfExporter.Export(user.FullName, interview, competencyNames, verifyUrl);
         return File(pdfBytes, "application/pdf", $"interview-report-{interview.StartedAtUtc:yyyy-MM-dd}.pdf");
     }
 
@@ -529,7 +593,16 @@ public class InterviewController(
                 db.CandidateCompetencies.Add(candidateCompetency);
             }
 
-            candidateCompetency.AddEvidence("Interview", interview.Id.ToString(), $"Thandi interview completed {DateTime.UtcNow:u}.", DateTime.UtcNow);
+            // Confirmed live: this is the exact pre-existing EF gotcha this codebase's own STUBS.md
+            // already warns about (P04 note) - a child added via domain-model collection navigation
+            // onto an ALREADY-TRACKED parent gets mistracked as Modified rather than Added, and since
+            // CompetencyEvidence is append-only, AppendOnlyInterceptor then (correctly) blocks what it
+            // sees as an illegitimate UPDATE - which surfaced as a genuine DbUpdateConcurrencyException
+            // ("expected 1 row(s), affected 0") crashing interview completion for any competency that
+            // already had a CandidateCompetency row from an earlier interview. db.Add here, matching
+            // the same fix already applied at LearningController.RequestReassessment.
+            var evidence = candidateCompetency.AddEvidence("Interview", interview.Id.ToString(), $"Nolwazi interview completed {DateTime.UtcNow:u}.", DateTime.UtcNow);
+            db.Add(evidence);
         }
     }
 

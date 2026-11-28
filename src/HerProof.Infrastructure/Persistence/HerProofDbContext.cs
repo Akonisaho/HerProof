@@ -5,6 +5,7 @@ using HerProof.Domain.Consent;
 using HerProof.Domain.Experience;
 using HerProof.Domain.Identity;
 using HerProof.Domain.Interviews;
+using HerProof.Domain.Notifications;
 using HerProof.Domain.Opportunities;
 using HerProof.Domain.Partnerships;
 using HerProof.Domain.Passports;
@@ -23,6 +24,7 @@ public class HerProofDbContext(DbContextOptions<HerProofDbContext> options)
     public DbSet<CandidateProfile> CandidateProfiles => Set<CandidateProfile>();
     public DbSet<Organisation> Organisations => Set<Organisation>();
     public DbSet<OrganisationMember> OrganisationMembers => Set<OrganisationMember>();
+    public DbSet<CandidateOutreach> CandidateOutreaches => Set<CandidateOutreach>();
 
     // Consent / Audit
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
@@ -46,6 +48,8 @@ public class HerProofDbContext(DbContextOptions<HerProofDbContext> options)
     public DbSet<LearningProgress> LearningProgresses => Set<LearningProgress>();
     public DbSet<GapReport> GapReports => Set<GapReport>();
     public DbSet<GapReportItem> GapReportItems => Set<GapReportItem>();
+    public DbSet<CandidatePreferredCompetency> CandidatePreferredCompetencies => Set<CandidatePreferredCompetency>();
+    public DbSet<RoadmapStepCompletion> RoadmapStepCompletions => Set<RoadmapStepCompletion>();
 
     // Beyond Employment
     public DbSet<ExperienceRecord> ExperienceRecords => Set<ExperienceRecord>();
@@ -73,6 +77,9 @@ public class HerProofDbContext(DbContextOptions<HerProofDbContext> options)
     public DbSet<IntegrityEvent> IntegrityEvents => Set<IntegrityEvent>();
     public DbSet<AssessmentSubmission> AssessmentSubmissions => Set<AssessmentSubmission>();
     public DbSet<AssessmentReview> AssessmentReviews => Set<AssessmentReview>();
+
+    // Notifications
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     // Verification and passport
     public DbSet<VerificationRecord> VerificationRecords => Set<VerificationRecord>();

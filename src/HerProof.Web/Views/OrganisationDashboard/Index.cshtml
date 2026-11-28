@@ -1,0 +1,84 @@
+@model HerProof.Web.Models.Opportunities.OrganisationDashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var kindLabel = Model.IsBursaryPartner ? "Bursary partner dashboard" : "Hiring dashboard";
+    var candidateWord = Model.IsBursaryPartner ? "applicants" : "candidates";
+}
+
+<div class="hero-wrap hero-wrap-tight">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">@kindLabel</span>
+        <h1>@Model.OrganisationName</h1>
+        <p class="opportunity-meta mb-0">
+            @Model.PublishedCount of @Model.TotalOpportunityCount opportunit@(Model.TotalOpportunityCount == 1 ? "y" : "ies") published ·
+            @Model.TotalPendingApplications application@(Model.TotalPendingApplications == 1 ? "" : "s") waiting on you ·
+            reached out to @Model.ReachedOutCandidateCount @candidateWord
+        </p>
+    </div>
+</div>
+
+<section class="brand-section brand-section-tight">
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="brand-card text-center">
+            <span class="d-block" style="font-size: 2rem; font-weight: 700;">@Model.TotalPendingApplications</span>
+            <span class="text-muted small">Applications waiting on you</span>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="brand-card text-center">
+            <span class="d-block" style="font-size: 2rem; font-weight: 700;">@Model.PublishedCount</span>
+            <span class="text-muted small">Published opportunities</span>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="brand-card text-center">
+            <span class="d-block" style="font-size: 2rem; font-weight: 700;">@Model.ReachedOutCandidateCount</span>
+            <span class="text-muted small">@(Model.IsBursaryPartner ? "Applicants" : "Candidates") you've reached out to</span>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <a asp-controller="OrganisationOpportunities" asp-action="Create" asp-route-organisationId="@Model.OrganisationId" class="btn-brand">
+        Post a @(Model.IsBursaryPartner ? "bursary" : "new opportunity")
+    </a>
+    <a asp-controller="OrganisationCandidates" asp-action="Index" class="btn-brand-outline">
+        Browse verified @candidateWord
+    </a>
+</div>
+
+<h2 class="h5 mb-3">Your opportunities</h2>
+@if (Model.Opportunities.Count == 0)
+{
+    <div class="brand-card">
+        <p class="mb-0 text-muted">You haven't posted anything yet.</p>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-column gap-2">
+        @foreach (var row in Model.Opportunities)
+        {
+            <a asp-controller="OrganisationOpportunities" asp-action="Details" asp-route-organisationId="@Model.OrganisationId" asp-route-opportunityId="@row.OpportunityId"
+               class="opportunity-card brand-card d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <strong>@row.Title</strong>
+                    <span class="opportunity-org d-block">@row.OpportunityType &middot; @row.TotalApplications application@(row.TotalApplications == 1 ? "" : "s")</span>
+                </div>
+                <div class="text-end">
+                    @if (row.PendingApplications > 0)
+                    {
+                        <span class="status-pill status-pill-warning d-block mb-1">@row.PendingApplications pending review</span>
+                    }
+                    <span class="device-pill @(row.Status == "Published" ? "detected" : "")">@row.Status</span>
+                </div>
+            </a>
+        }
+    </div>
+}
+
+</section>

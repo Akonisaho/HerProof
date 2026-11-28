@@ -12,7 +12,7 @@
     };
 }
 
-<div class="hero-wrap">
+<div class="hero-wrap hero-wrap-tight">
     <div class="hero-blob hero-blob-1"></div>
     <div class="hero-blob hero-blob-2"></div>
     <div class="hero hero-compact">
@@ -31,7 +31,7 @@
     </div>
 </div>
 
-<section class="brand-section pb-0">
+<section class="brand-section brand-section-tight pb-0">
     <div class="row g-3">
         <div class="col-6 col-md-3">
             <div class="brand-card text-center">
@@ -41,7 +41,7 @@
         </div>
         <div class="col-6 col-md-3">
             <div class="brand-card text-center">
-                <div class="fs-2 fw-bold" style="color: var(--brand-pink);">@Model.UnverifiedCompetencyCount</div>
+                <div class="fs-2 fw-bold" style="color: var(--brand-accent);">@Model.UnverifiedCompetencyCount</div>
                 <div class="text-muted small">Not yet verified</div>
             </div>
         </div>
@@ -53,14 +53,14 @@
         </div>
         <div class="col-6 col-md-3">
             <div class="brand-card text-center">
-                <div class="fs-2 fw-bold" style="color: var(--brand-pink);">@Model.RecentInterviews.Count</div>
+                <div class="fs-2 fw-bold" style="color: var(--brand-accent);">@Model.RecentInterviews.Count</div>
                 <div class="text-muted small">Interviews taken</div>
             </div>
         </div>
     </div>
 </section>
 
-<section class="brand-section">
+<section class="brand-section brand-section-cozy">
     <div class="row g-4">
         <div class="col-lg-7">
             <h2>What's next</h2>
@@ -68,16 +68,16 @@
                 <a asp-controller="Repositories" asp-action="Index" class="opportunity-card brand-card d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
                         <strong>Submit a repository</strong>
-                        <span class="opportunity-org d-block">Get your real code analysed and interviewed by Thandi</span>
+                        <span class="opportunity-org d-block">Get your real code analysed and interviewed by Nolwazi</span>
                     </div>
-                    <span class="device-pill">Go &rarr;</span>
+                    <span class="cta-pill">Go &rarr;</span>
                 </a>
                 <a asp-controller="Opportunities" asp-action="Index" class="opportunity-card brand-card d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
                         <strong>Browse opportunities</strong>
                         <span class="opportunity-org d-block">Search and filter jobs, internships and bursaries</span>
                     </div>
-                    <span class="device-pill">Go &rarr;</span>
+                    <span class="cta-pill">Go &rarr;</span>
                 </a>
             </div>
 
@@ -121,7 +121,7 @@
         </div>
 
         <div class="col-lg-5">
-            <div class="mockup-frame">
+            <div class="mockup-frame mockup-frame-dark-accent">
                 <div class="mockup-chrome">
                     <span class="mockup-dot"></span>
                     <span class="mockup-dot"></span>

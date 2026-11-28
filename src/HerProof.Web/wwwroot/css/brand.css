@@ -14,6 +14,13 @@
   --brand-code-border: #3a2f4a;
   --brand-success: #2f7a4d;
   --brand-success-soft: #eaf5ee;
+  --brand-danger: #a33434;
+  --brand-danger-soft: #faeaea;
+  --brand-warning: #8a6116;
+  --brand-warning-soft: #fdf4e3;
+  --brand-accent: #96104f;
+  --brand-accent-soft: #fbdeeb;
+  --brand-accent-dark: #7a0d3f;
   --brand-radius: 5px;
   --brand-radius-sm: 5px;
   --brand-shadow: 0 16px 40px rgba(25, 12, 19, 0.14);
@@ -25,8 +32,21 @@ body {
   font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Sora", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+
 a {
   text-decoration: none;
+  color: var(--brand-accent-dark);
+}
+
+a:hover {
+  color: var(--brand-accent);
+}
+
+code {
+  color: var(--brand-accent-dark);
 }
 
 .text-muted {
@@ -38,6 +58,23 @@ a {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--brand-pink-border);
+  position: relative;
+  z-index: 1030;
+}
+
+.brand-navbar .dropdown-menu {
+  border: 1px solid var(--brand-pink-border);
+  box-shadow: var(--brand-shadow);
+}
+
+.brand-navbar .dropdown-item {
+  color: var(--brand-ink);
+}
+
+.brand-navbar .dropdown-item:hover,
+.brand-navbar .dropdown-item:focus {
+  background: var(--brand-pink-soft);
+  color: var(--brand-pink);
 }
 
 .brand-wordmark {
@@ -63,6 +100,18 @@ a {
 
 .brand-navbar .nav-link:hover {
   color: var(--brand-pink) !important;
+}
+
+.brand-navbar .nav-link.active {
+  color: #fff !important;
+  background: var(--brand-pink);
+  border-radius: 5px;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.brand-navbar .nav-link.active:hover {
+  color: #fff !important;
 }
 
 .btn-brand {
@@ -103,14 +152,33 @@ a {
   border-color: var(--brand-pink);
 }
 
+/* Matches Bootstrap's own .form-control/.form-select height exactly, so a brand button sitting
+   next to filter inputs in the same row lines up instead of towering over them. */
+.btn-form-inline {
+  padding: 0.375rem 0.75rem;
+  line-height: 1.5;
+}
+
 /* --- Hero --- */
 .hero-wrap {
   position: relative;
   margin: 2rem 0 1rem;
   border-radius: var(--brand-radius);
   overflow: hidden;
-  background: var(--brand-pink-soft);
+  background: var(--brand-pink-soft-2);
   border: 1px solid var(--brand-pink-border);
+}
+
+.hero-wrap.hero-wrap-tight {
+  margin-bottom: 0.5rem;
+}
+
+.hero-wrap.hero-wrap-landing {
+  background: var(--brand-pink-soft);
+}
+
+.hero-wrap.hero-wrap-landing .hero-blob-1 {
+  background: var(--brand-pink-soft);
 }
 
 .hero-blob {
@@ -157,6 +225,11 @@ a {
   text-transform: uppercase;
 }
 
+.hero-eyebrow-blue {
+  color: var(--brand-accent-dark);
+  border-color: var(--brand-accent);
+}
+
 .hero h1 {
   font-size: clamp(2.3rem, 4vw, 3.6rem);
   font-weight: 800;
@@ -191,6 +264,16 @@ a {
   border: 1px solid var(--brand-pink-border);
   overflow: hidden;
   transform: rotate(1.5deg);
+}
+
+/* Dashboard-only: the preview card needs to read as "real," not as a pale decorative mockup. */
+.mockup-frame.mockup-frame-dark-accent {
+  border-color: var(--brand-pink);
+}
+
+.mockup-frame-dark-accent .mockup-chrome {
+  background: var(--brand-pink-soft-2);
+  border-bottom-color: var(--brand-pink);
 }
 
 .mockup-chrome {
@@ -286,6 +369,70 @@ a {
   color: #e4defe;
 }
 
+/* --- Flat, readable code viewer (Assessor's submission review etc.) - same palette as the
+   decorative hero code-panel above, but flat (no rotation) and built to actually be read: scrolls
+   its own content instead of the page, generous line-height, real spacing around it. --- */
+/* --- "Read more" disclosure (plain <details>/<summary>, no JS needed) --- */
+.read-more-toggle {
+  color: var(--brand-pink);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  list-style: none;
+  padding: 0.3rem 0;
+}
+
+.read-more-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.read-more-toggle:hover {
+  text-decoration: underline;
+}
+
+/* --- Integrity timeline: a quick visual flag for the handful of event types worth a second
+   look (lost focus/network/device), vs the quiet "_regained"/"_connected" recovery events -
+   never an automatic judgement, just making the existing honest event list easier to scan. --- */
+.integrity-flag-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 0.45rem;
+  flex-shrink: 0;
+}
+
+.integrity-flag-dot.is-flagged {
+  background: #e0a106;
+}
+
+.integrity-flag-dot.is-normal {
+  background: var(--brand-success, #2e9e5b);
+}
+
+.code-view-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.code-view {
+  background: var(--brand-code-bg);
+  border: 1px solid var(--brand-code-border);
+  border-radius: var(--brand-radius-sm);
+  padding: 1rem 1.15rem;
+  margin: 0;
+  font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: #e4defe;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
 .tok-kw {
   color: #ef5fa7;
 }
@@ -377,9 +524,76 @@ a {
   background: #fff;
 }
 
+/* --- Dark "bring it to life" treatment: same palette as the code editor panel, not pale pink
+   on white, for the one card on a page that's meant to feel like a real, living credential. --- */
+.skill-card-dark {
+  background: var(--brand-code-bg);
+  border: 1px solid var(--brand-pink);
+  box-shadow: 0 16px 40px rgba(25, 12, 19, 0.3);
+}
+
+.skill-card-dark .skill-card-title {
+  color: #fff;
+}
+
+.skill-card-dark .skill-card-id {
+  color: #c9bfe0;
+}
+
+.skill-card-dark .skill-row {
+  border-top-color: var(--brand-code-border);
+}
+
+.skill-card-dark .skill-name {
+  color: #e4defe;
+}
+
+.skill-card-dark .skill-check {
+  color: #ef5fa7;
+}
+
+.skill-card-dark .skill-level {
+  color: #d9c26b;
+}
+
+.skill-card-dark .skill-card-footer {
+  border-top-color: var(--brand-code-border);
+}
+
+.skill-card-dark .skill-card-footer .fw-bold {
+  color: #fff;
+}
+
+.skill-card-dark .text-muted,
+.skill-card-dark .text-sm {
+  color: #a79bc4 !important;
+}
+
+.skill-card-dark .mockup-badge {
+  background: rgba(239, 95, 167, 0.18);
+  color: #ef5fa7;
+}
+
+.skill-card-dark .mockup-qr-img {
+  border-color: var(--brand-code-border);
+}
+
 /* --- Sections --- */
 .brand-section {
   padding: 4.5rem 0;
+}
+
+/* Data/list pages (repositories, interviews, passport) read as app screens, not marketing
+   sections - they don't need the landing page's generous vertical breathing room. */
+.brand-section-tight {
+  padding: 0.5rem 0 1.5rem;
+}
+
+/* A middle ground for sections that hold a rotated/overlapping visual (e.g. the tilted passport
+   mockup) - brand-section-tight's 0.5rem isn't enough clearance for those, but brand-section's
+   4.5rem reads as a dead gap. */
+.brand-section-cozy {
+  padding: 2rem 0 3rem;
 }
 
 .section-eyebrow {
@@ -396,8 +610,16 @@ a {
   font-size: clamp(1.7rem, 3vw, 2.3rem);
 }
 
+/* A card section heading (e.g. "Verified", "Share a credential") is not a marketing section
+   title - it must not pick up the large landing-page h2 size above just by being inside one. */
+.brand-section h2.h5 {
+  font-weight: 700;
+  letter-spacing: normal;
+  font-size: 1.25rem;
+}
+
 .hero-compact {
-  padding: 3rem;
+  padding: 1.75rem 3rem;
 }
 
 .hero-compact h1 {
@@ -432,16 +654,21 @@ a {
 
 .brand-card {
   background: #fff;
-  border: 1px solid var(--brand-pink-border);
+  border: 1px solid var(--brand-pink);
+  box-shadow: var(--brand-shadow-sm);
   border-radius: var(--brand-radius-sm);
   padding: 1.85rem;
   height: 100%;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-.brand-card:hover {
+/* Scoped to actually-interactive cards (a link or button carrying this class, e.g. the inbox
+   queue's rows) - not every .brand-card is clickable, and a plain informational panel (most of
+   them) lifting on hover was a false "this does something" affordance with nothing behind it. */
+a.brand-card:hover,
+button.brand-card:hover {
   transform: translateY(-3px);
-  box-shadow: var(--brand-shadow-sm);
+  box-shadow: var(--brand-shadow);
   border-color: var(--brand-pink-soft-2);
 }
 
@@ -676,14 +903,142 @@ form ul {
   display: inline-block;
   padding: 0.25rem 0.75rem;
   border-radius: 5px;
-  background: var(--brand-pink-soft);
-  color: var(--brand-ink-muted);
+  background: var(--brand-accent-soft);
+  color: var(--brand-accent-dark);
   font-size: 0.82rem;
 }
 
 .device-pill.detected {
   background: var(--brand-success-soft);
   color: var(--brand-success);
+}
+
+/* A clear call-to-action chip (e.g. "Go ->"), solid dark pink - not another pale info pill. */
+.cta-pill {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 5px;
+  background: var(--brand-pink);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+/* --- Interview report certificate --- */
+.certificate-card {
+  background: #fff;
+  border: 3px double var(--brand-pink);
+  border-radius: var(--brand-radius);
+  box-shadow: var(--brand-shadow);
+  padding: 2.5rem;
+  text-align: center;
+}
+
+.certificate-eyebrow {
+  color: var(--brand-pink);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.certificate-name {
+  font-weight: 800;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  margin: 0.5rem 0 0.25rem;
+}
+
+.certificate-meta {
+  color: var(--brand-ink-muted);
+  font-size: 0.9rem;
+}
+
+.certificate-qr-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--brand-pink-border);
+}
+
+/* --- Dashboard stat tiles --- */
+/* --- Repositories list --- */
+.status-pill {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 5px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--brand-accent-soft);
+  color: var(--brand-accent-dark);
+}
+
+.status-pill-success {
+  background: var(--brand-success-soft);
+  color: var(--brand-success);
+}
+
+.status-pill-danger {
+  background: var(--brand-danger-soft);
+  color: var(--brand-danger);
+}
+
+.status-pill-warning {
+  background: var(--brand-warning-soft);
+  color: var(--brand-warning);
+}
+
+.repo-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.repo-name {
+  font-weight: 800;
+  font-size: 1.02rem;
+  color: var(--brand-ink);
+}
+
+.repo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  color: var(--brand-ink-muted);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.repo-summary {
+  color: var(--brand-ink-muted);
+  font-size: 0.88rem;
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--brand-pink-border);
+  padding-top: 0.75rem;
+}
+
+.repo-interview-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--brand-pink-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.repo-interview-actions .opportunity-picker {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.repo-interview-actions .opportunity-picker select {
+  min-width: 200px;
 }
 
 .question-tab.btn-brand-tab-active {
@@ -750,6 +1105,11 @@ form ul {
 .opportunity-pill-job {
   background: var(--brand-pink-darker);
   color: #fff;
+}
+
+.opportunity-pill-hackathon {
+  background: #fff3cd;
+  color: #8a6400;
 }
 
 .opportunity-meta {
@@ -843,6 +1203,14 @@ form ul {
   color: #fff !important;
 }
 
+.brand-footer a {
+  color: #cdc3c8;
+}
+
+.brand-footer a:hover {
+  color: #fff;
+}
+
 .brand-footer .footer-bottom {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   margin-top: 2.5rem;
@@ -851,7 +1219,7 @@ form ul {
   color: #9b8f95;
 }
 
-/* --- Thandi avatar --- */
+/* --- Nolwazi avatar --- */
 .thandi-row {
   display: flex;
   align-items: center;
@@ -871,7 +1239,7 @@ form ul {
   transition: box-shadow 0.2s ease;
 }
 
-/* --- Thandi's face: a simple animated SVG, not a photorealistic avatar — blinks and sways gently
+/* --- Nolwazi's face: a simple animated SVG, not a photorealistic avatar — blinks and sways gently
    at idle so she reads as "present" rather than a static icon, nods and "talks" while speaking. */
 .thandi-face {
   width: 100%;
@@ -1115,17 +1483,94 @@ form ul {
   flex-shrink: 0;
 }
 
+/* Real-email-style unread badge: a small circle overlaid on the icon's top-right corner, not a
+   pill sitting beside it - .nav-icon-wrap gives it something positioned to overlay onto. */
 .nav-unread-badge {
-  display: inline-block;
-  min-width: 1.1rem;
-  text-align: center;
-  margin-left: 0.3rem;
+  position: absolute;
+  top: -0.4rem;
+  right: -0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
   background: var(--brand-pink);
   color: #fff;
   font-size: 0.68rem;
   font-weight: 700;
-  border-radius: 5px;
-  padding: 0.05rem 0.4rem;
+  line-height: 1;
+  border-radius: 999px;
+  border: 2px solid var(--brand-surface, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* Real-email-style message preview dropdown opened from the inbox icon - distinct from the grouped
+   candidate-folder grid at /assessor, this lists individual submissions so one click goes straight
+   to the exact evidence pack it's about, the same way opening an email opens that one message. */
+.inbox-preview-menu {
+  width: 22rem;
+  max-width: 90vw;
+  max-height: 24rem;
+  overflow-y: auto;
+  padding: 0.4rem 0;
+}
+
+.inbox-message-item {
+  white-space: normal;
+  padding: 0.6rem 1rem;
+  position: relative;
+}
+
+.inbox-message-item .inbox-dot {
+  position: absolute;
+  top: 0.95rem;
+  left: 0.35rem;
+}
+
+.inbox-message-item.is-unread {
+  padding-left: 1.5rem;
+  font-weight: 600;
+}
+
+.submission-row {
+  display: block;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--brand-pink-border, #f3c6d9);
+  border-radius: 8px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.submission-row:hover {
+  border-color: var(--brand-pink);
+  background-color: var(--brand-pink-tint, #fdf1f6);
+}
+
+.nav-icon-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.nav-icon-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.nav-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  color: var(--brand-ink);
+}
+
+.nav-icon-lg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.nav-icon-kebab {
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 /* --- Responsive --- */
@@ -1205,6 +1650,20 @@ form ul {
   border-radius: 5px;
 }
 
+/* Form fields should read as clearly as the brand buttons sitting next to them, not a faint
+   default-gray outline. */
+.form-control,
+.form-select {
+  border: 1.5px solid var(--brand-pink);
+  box-shadow: 0 2px 6px rgba(194, 24, 107, 0.1);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--brand-pink);
+  box-shadow: 0 0 0 0.2rem rgba(194, 24, 107, 0.2);
+}
+
 /* --- Candidate camera self-view (interview-camera.js) --- */
 .camera-box {
   position: relative;
@@ -1268,3 +1727,185 @@ form ul {
 .camera-sound-bar.active {
   background: var(--brand-success);
 }
+
+.camera-sound-bar-interview {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: #adb5bd;
+  transition: width 0.1s ease-out;
+}
+
+.camera-sound-bar-interview.active {
+  background: var(--brand-success);
+}
+
+.camera-sound-bar-assessment {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: #adb5bd;
+  transition: width 0.1s ease-out;
+}
+
+.camera-sound-bar-assessment.active {
+  background: var(--brand-success);
+}
+
+/* --- Nolwazi's panel during an interview: bigger figure (head + shoulders, not just a floating
+   face), positioned alongside the question rather than above it. --- */
+.thandi-panel {
+  position: sticky;
+  top: 1rem;
+  padding: 1.5rem;
+}
+
+.thandi-avatar-lg {
+  width: 100%;
+  max-width: 160px;
+  height: auto;
+  aspect-ratio: 120 / 150;
+  margin: 0 auto;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.thandi-shoulders {
+  fill: var(--brand-pink-dark);
+}
+
+/* --- Career guide chat widget --- */
+#career-guide-widget {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1040;
+}
+
+#career-guide-toggle {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--brand-pink);
+  color: #fff;
+  box-shadow: var(--brand-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+#career-guide-toggle:hover {
+  background: var(--brand-pink-dark);
+  transform: translateY(-2px);
+}
+
+#career-guide-toggle svg {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+#career-guide-panel {
+  position: absolute;
+  right: 0;
+  bottom: 4rem;
+  width: 28rem;
+  max-width: calc(100vw - 2rem);
+  background: #fff;
+  border: 1px solid var(--brand-pink-border);
+  border-radius: var(--brand-radius);
+  box-shadow: var(--brand-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.career-guide-surface {
+  background: #fff;
+  border: 1px solid var(--brand-pink-border);
+  border-radius: var(--brand-radius);
+  box-shadow: var(--brand-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+.career-guide-header {
+  padding: 1rem 1.25rem;
+  background: var(--brand-pink-soft);
+  border-bottom: 1px solid var(--brand-pink-border);
+}
+
+.career-guide-messages {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  flex: 1;
+}
+
+#career-guide-messages {
+  max-height: 24rem;
+}
+
+.career-guide-bubble {
+  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  max-width: 85%;
+}
+
+.career-guide-bubble-guide {
+  background: var(--brand-pink-soft);
+  color: var(--brand-ink);
+  align-self: flex-start;
+}
+
+.career-guide-bubble-candidate {
+  background: var(--brand-pink);
+  color: #fff;
+  align-self: flex-end;
+}
+
+.career-guide-roadmap-link {
+  align-self: flex-start;
+}
+
+.career-guide-form {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--brand-pink-border);
+}
+
+.career-guide-form input {
+  flex: 1;
+  border: 1.5px solid var(--brand-pink);
+  border-radius: 5px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.career-guide-trigger-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.career-guide-trigger-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--brand-shadow);
+}
+
+#career-guide-modal .modal-content {
+  overflow: hidden;
+}
+
+#career-guide-modal .career-guide-messages {
+  max-height: none;
+  min-height: 22rem;
+}
+

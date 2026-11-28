@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HerProof.Application.Authorization;
+using HerProof.Domain.Competencies;
 using HerProof.Infrastructure.Persistence;
 using HerProof.Web.Authorization;
 using HerProof.Web.Models.Account;
@@ -54,6 +55,14 @@ public class CandidateProfileController(HerProofDbContext db, IResourceAuthorize
             return NotFound();
         }
 
+        ViewBag.AvailableCompetencies = await db.Competencies.AsNoTracking()
+            .OrderBy(c => c.Name)
+            .ToListAsync(cancellationToken);
+        var preferredCompetencyIds = await db.CandidatePreferredCompetencies.AsNoTracking()
+            .Where(p => p.CandidateId == candidateProfileId)
+            .Select(p => p.CompetencyId)
+            .ToListAsync(cancellationToken);
+
         return View(new EditProfileViewModel
         {
             Province = profile.Province,
@@ -65,6 +74,7 @@ public class CandidateProfileController(HerProofDbContext db, IResourceAuthorize
             LinkedInProfile = profile.LinkedInProfile,
             FieldOfStudy = profile.FieldOfStudy,
             DateOfBirth = profile.DateOfBirth,
+            PreferredCompetencyIds = preferredCompetencyIds,
         });
     }
 
@@ -91,6 +101,17 @@ public class CandidateProfileController(HerProofDbContext db, IResourceAuthorize
         profile.UpdateProfile(
             model.Province, model.EducationLevel, model.GenderDeclared, model.HouseholdIncomeBand,
             model.CareerInterests, model.GitHubProfile, model.LinkedInProfile, model.FieldOfStudy, model.DateOfBirth);
+
+        var existingPreferred = await db.CandidatePreferredCompetencies
+            .Where(p => p.CandidateId == candidateProfileId)
+            .ToListAsync(cancellationToken);
+        db.RemoveRange(existingPreferred);
+        var now = DateTime.UtcNow;
+        foreach (var competencyId in model.PreferredCompetencyIds.Distinct())
+        {
+            db.Add(new CandidatePreferredCompetency(candidateProfileId, competencyId, now));
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         return RedirectToAction(nameof(Index), new { candidateProfileId });

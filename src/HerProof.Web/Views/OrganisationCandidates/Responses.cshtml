@@ -1,0 +1,71 @@
+@model IReadOnlyList<HerProof.Web.Models.Identity.OrganisationResponseRow>
+@using HerProof.Domain.Identity
+@{
+    ViewData["Title"] = "Her responses";
+
+    static string OutreachLabel(OutreachType type) => type switch
+    {
+        OutreachType.JobOffer => "Job offer",
+        _ => "Culture-fit interview invite",
+    };
+
+    static string ResponseLabel(OutreachType type, OutreachResponseStatus status) => status switch
+    {
+        OutreachResponseStatus.Accepted => type == OutreachType.JobOffer ? "She accepted" : "She'll attend",
+        _ => type == OutreachType.JobOffer ? "She declined" : "She can't make it",
+    };
+
+    static string ResponsePillClass(OutreachResponseStatus status) => status switch
+    {
+        OutreachResponseStatus.Accepted => "status-pill status-pill-success",
+        _ => "status-pill status-pill-danger",
+    };
+}
+
+<div class="hero-wrap hero-wrap-tight">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">Responses</span>
+        <h1>Her responses to your outreach</h1>
+        <p class="lead lead-full mb-0">
+            Every real answer a candidate has given to a culture-fit interview invite or job offer you
+            sent her - nothing here is ever assumed on her behalf.
+        </p>
+    </div>
+</div>
+
+<section class="brand-section brand-section-tight">
+    @if (Model.Count == 0)
+    {
+        <div class="brand-card text-center">
+            <p class="mb-0 text-muted">No responses yet. Once she accepts, declines, or confirms, it will show up here.</p>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-3">
+            @foreach (var row in Model)
+            {
+                <div class="brand-card">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                        <div>
+                            <strong>@row.CandidateName</strong>
+                            <span class="opportunity-org d-block">@OutreachLabel(row.OutreachType) &middot; sent @row.SentAtUtc.ToString("d MMM yyyy")</span>
+                        </div>
+                        <span class="@ResponsePillClass(row.ResponseStatus)">@ResponseLabel(row.OutreachType, row.ResponseStatus)</span>
+                    </div>
+                    <p class="text-muted small mb-1">Your message: &ldquo;@row.Message&rdquo;</p>
+                    @if (!string.IsNullOrWhiteSpace(row.ResponseMessage))
+                    {
+                        <p class="small mb-1">Her reply: &ldquo;@row.ResponseMessage&rdquo;</p>
+                    }
+                    @if (row.RespondedAtUtc is DateTime respondedAt)
+                    {
+                        <p class="text-muted small mb-0">Responded @respondedAt.ToString("d MMM yyyy")</p>
+                    }
+                </div>
+            }
+        </div>
+    }
+</section>

@@ -1,0 +1,10 @@
+@model Guid?
+@if (Model is Guid organisationId)
+{
+    <li class="nav-item">
+        <a class="nav-link" asp-controller="OrganisationDashboard" asp-action="Index" asp-route-organisationId="@organisationId">Dashboard</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" asp-controller="OrganisationOpportunities" asp-action="Index" asp-route-organisationId="@organisationId">Your opportunities</a>
+    </li>
+}

@@ -3,29 +3,52 @@
     ViewData["Title"] = "Create an assessment";
 }
 
-<h1>Create an assessment</h1>
-<form asp-action="Create" method="post">
-    <div asp-validation-summary="All" class="text-danger"></div>
-    <div class="mb-3">
-        <label asp-for="Title" class="form-label"></label>
-        <input asp-for="Title" class="form-control" />
+<div class="hero-wrap hero-wrap-tight">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">New assessment</span>
+        <h1>Create an assessment</h1>
+        <p class="lead lead-full mb-0">Start here, then write your own questions and starter code on the next page.</p>
     </div>
-    <div class="mb-3">
-        <label asp-for="Description" class="form-label"></label>
-        <textarea asp-for="Description" class="form-control"></textarea>
+</div>
+
+<section class="brand-section brand-section-tight">
+    <div class="brand-card" style="max-width: 640px; margin: 0 auto;">
+        <form asp-action="Create" method="post">
+            <div asp-validation-summary="All" class="text-danger"></div>
+            <div class="mb-3">
+                <label asp-for="Title" class="form-label"></label>
+                <input asp-for="Title" class="form-control" placeholder="e.g. Fix the inventory race condition" />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label"></label>
+                <textarea asp-for="Description" class="form-control" placeholder="What is this assessment actually about? This is shown to candidates before they start."></textarea>
+            </div>
+            <div class="mb-3">
+                <label asp-for="AssessmentType" class="form-label"></label>
+                <select asp-for="AssessmentType" class="form-select">
+                    <option value="C#">C#</option>
+                    <option value="Practical">Practical (freeform)</option>
+                    <option value="Other">Other</option>
+                </select>
+                <div class="form-text">Just a label on the card - it doesn't change what you can write. Your own questions, starter code and hidden tests on the next page are the only thing that's ever used.</div>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Language" class="form-label"></label>
+                <select asp-for="Language" asp-items="Html.GetEnumSelectList<HerProof.Domain.Assessments.AssessmentLanguage>()" class="form-select"></select>
+                <div class="form-text">Which real, sandboxed language a candidate's submission is actually compiled and tested in - pick the one your problem statement is written in.</div>
+            </div>
+            <div class="mb-3 form-check">
+                <input asp-for="IncludeExampleQuestions" class="form-check-input" />
+                <label asp-for="IncludeExampleQuestions" class="form-check-label"></label>
+                <div class="form-text">Adds two ready-made example C# questions you can edit or delete - a starting point only, never required. Leave unchecked for a completely blank assessment that's entirely your own.</div>
+            </div>
+            <div class="mb-3">
+                <label asp-for="DurationMinutes" class="form-label"></label>
+                <input asp-for="DurationMinutes" class="form-control" />
+            </div>
+            <button type="submit" class="btn-brand">Create</button>
+        </form>
     </div>
-    <div class="mb-3">
-        <label asp-for="AssessmentType" class="form-label"></label>
-        <select asp-for="AssessmentType" class="form-select">
-            <option value="C#">C#</option>
-            <option value="Practical">Practical (freeform)</option>
-            <option value="Other">Other</option>
-        </select>
-        <div class="form-text">Selecting C# adds two real practical questions automatically: an implement-a-feature question and a find-and-fix-the-bug question.</div>
-    </div>
-    <div class="mb-3">
-        <label asp-for="DurationMinutes" class="form-label"></label>
-        <input asp-for="DurationMinutes" class="form-control" />
-    </div>
-    <button type="submit" class="btn btn-primary">Create</button>
-</form>
+</section>

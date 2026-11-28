@@ -8,6 +8,7 @@ public enum OpportunityType
     Internship,
     Learnership,
     Bursary,
+    Hackathon,
 }
 
 public enum OpportunityStatus
@@ -43,6 +44,11 @@ public class Opportunity : Entity
     public IReadOnlyCollection<OpportunityCompetency> RequiredCompetencies => _requiredCompetencies;
     public IReadOnlyCollection<EligibilityRule> EligibilityRules => _eligibilityRules;
 
+    /// <summary>The practical assessment a candidate is meant to take for this specific role, if the
+    /// recruiter/partner attached one - distinct from the generic competency-matched assessment list,
+    /// which still applies when this is null.</summary>
+    public Guid? LinkedAssessmentId { get; private set; }
+
     private Opportunity()
     {
         Title = string.Empty;
@@ -69,6 +75,10 @@ public class Opportunity : Entity
     public void Publish() => Status = OpportunityStatus.Published;
 
     public void Close() => Status = OpportunityStatus.Closed;
+
+    public void LinkAssessment(Guid assessmentId) => LinkedAssessmentId = assessmentId;
+
+    public void UnlinkAssessment() => LinkedAssessmentId = null;
 
     public OpportunityCompetency RequireCompetency(Guid competencyId, int requiredLevel, bool isMandatory)
     {

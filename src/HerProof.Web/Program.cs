@@ -139,10 +139,38 @@ try
     builder.Services.AddSingleton<IStaticCodeAnalyzer, RoslynStaticCodeAnalyzer>();
     builder.Services.AddScoped<RepositoryAnalysisOrchestrator>();
     builder.Services.AddScoped(sp =>
-        new ThandiInterviewEngine(
+        new NolwaziInterviewEngine(
             sp.GetRequiredService<IAIService>(),
-            builder.Configuration["Interviewer:Name"] ?? "Thandi",
-            sp.GetRequiredService<ILogger<ThandiInterviewEngine>>()));
+            builder.Configuration["Interviewer:Name"] ?? "Nolwazi",
+            sp.GetRequiredService<ILogger<NolwaziInterviewEngine>>()));
+    // The career-guide chatbot gets its own, separate Groq key (CareerGuide:Groq:ApiKey) so its usage
+    // never competes with Nolwazi's interview/repository-analysis quota on the main Groq:ApiKey - falls
+    // back to whatever IAIService is already registered above if no dedicated key is set.
+    var careerGuideGroqApiKey = builder.Configuration["CareerGuide:Groq:ApiKey"];
+    if (!string.IsNullOrWhiteSpace(careerGuideGroqApiKey))
+    {
+        builder.Services.AddHttpClient("CareerGuideGroqAiService", client =>
+        {
+            client.BaseAddress = new Uri("https://api.groq.com/");
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {careerGuideGroqApiKey}");
+        });
+        var careerGuideGroqModel = builder.Configuration["CareerGuide:Groq:Model"];
+        builder.Services.AddScoped(sp =>
+            new CareerGuideEngine(
+                new GroqAiService(
+                    sp.GetRequiredService<IHttpClientFactory>().CreateClient("CareerGuideGroqAiService"),
+                    string.IsNullOrWhiteSpace(careerGuideGroqModel) ? "openai/gpt-oss-120b" : careerGuideGroqModel),
+                HerProof.Web.Models.Learning.CareerRoadmaps.Goals.Keys.ToList(),
+                sp.GetRequiredService<ILogger<CareerGuideEngine>>()));
+    }
+    else
+    {
+        builder.Services.AddScoped(sp =>
+            new CareerGuideEngine(
+                sp.GetRequiredService<IAIService>(),
+                HerProof.Web.Models.Learning.CareerRoadmaps.Goals.Keys.ToList(),
+                sp.GetRequiredService<ILogger<CareerGuideEngine>>()));
+    }
 
     var speechKey = builder.Configuration["Speech:Key"];
     var speechRegion = builder.Configuration["Speech:Region"];
@@ -248,15 +276,21 @@ try
         await DbSeeder.SeedAsync(db, userManager, roleManager, seedDemoData: true);
     }
 
-    if (!app.Environment.IsDevelopment())
-    {
-        app.UseExceptionHandler("/Home/Error");
-        app.UseHsts();
-    }
-    else
+    if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
         app.UseSwaggerUI();
+    }
+    else if (app.Environment.IsEnvironment("Testing"))
+    {
+        // Integration tests need the real exception (not the generic "/Home/Error" page) to
+        // diagnose failures - this environment name is only ever set by WebApplicationFactory.
+        app.UseDeveloperExceptionPage();
+    }
+    else
+    {
+        app.UseExceptionHandler("/Home/Error");
+        app.UseHsts();
     }
 
     app.UseHttpsRedirection();
@@ -273,10 +307,14 @@ try
         context.Response.Headers["X-Frame-Options"] = "DENY";
         context.Response.Headers["Referrer-Policy"] = "no-referrer";
         context.Response.Headers["Content-Security-Policy"] =
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'; img-src 'self' data:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'";
-        // Microphone is allowed for this origin only (P11's voice interview, candidate-initiated,
-        // consent-gated) — camera and geolocation stay denied; HerProof never uses either.
-        context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=()";
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self'; img-src 'self' data:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'";
+        // Camera and microphone are allowed for this origin only (candidate-initiated, consent-gated:
+        // voice interview mic/SpeechRecognition, interview camera self-view, and the Electron
+        // practical-assessment agent) — geolocation stays denied; HerProof never uses it. Camera used
+        // to be denied here too, from before the camera self-view feature existed; a bare "camera=()"
+        // blocks getUserMedia({video:true}) at the browser level before any permission prompt even
+        // shows, which is exactly what silently broke it.
+        context.Response.Headers["Permissions-Policy"] = "camera=(self), microphone=(self), geolocation=()";
         await next();
     });
 

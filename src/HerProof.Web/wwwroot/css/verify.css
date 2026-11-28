@@ -114,3 +114,26 @@ body {
   color: var(--v-ink-muted);
   font-size: 0.8rem;
 }
+
+/* --- Interview certificate verify page --- */
+.verify-certificate {
+  border: 3px double var(--v-pink);
+}
+
+.verify-competency-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.verify-competency-pill {
+  display: inline-block;
+  border: 1px solid var(--v-pink-border);
+  background: var(--v-pink-soft);
+  color: var(--v-ink);
+  border-radius: 5px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}

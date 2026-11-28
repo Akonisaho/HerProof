@@ -28,9 +28,20 @@ builder.Services.AddDbContext<HerProofDbContext>(options => options
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IGitHubClient, GitHubClient>(client =>
 {
+    // Unauthenticated requests are capped at 60/hour per IP — the actual repo-analysis workload
+    // (fetching dozens of files per submission) is exactly what exhausts that fastest, so this is the
+    // more important of the two places to apply the optional free token (see HerProof.Web's own
+    // registration for the same logic).
     client.BaseAddress = new Uri("https://api.github.com/");
     client.DefaultRequestHeaders.UserAgent.ParseAdd("HerProof-Hackathon/1.0");
     client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+    client.Timeout = TimeSpan.FromSeconds(45);
+
+    var gitHubToken = builder.Configuration["GitHub:Token"];
+    if (!string.IsNullOrWhiteSpace(gitHubToken))
+    {
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", gitHubToken);
+    }
 });
 builder.Services.AddScoped<RepositoryContentFetcher>();
 builder.Services.AddSingleton<IStaticCodeAnalyzer, RoslynStaticCodeAnalyzer>();

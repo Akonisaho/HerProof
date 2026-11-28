@@ -1,0 +1,53 @@
+@model HerProof.Web.Models.Interviews.PublicInterviewCertificateViewModel
+@{
+    ViewData["Title"] = "Verify interview record";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - HerProof</title>
+    <link rel="stylesheet" href="~/css/verify.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="verify-card verify-certificate">
+        <div class="verify-header">
+            <span class="verify-wordmark">Her<span>Proof</span></span>
+            <p class="verify-note">
+                This confirms an AI-assisted skills interview took place. It is not a verified
+                credential - only a named human Assessor can verify a competency (see the candidate's
+                Skills Passport for that).
+            </p>
+        </div>
+        <div class="verify-body text-center">
+            <p class="verify-section-label mb-1">Interview record</p>
+            <h2 class="mb-1">@Model.CandidateName</h2>
+            <p class="verify-passport-number mb-3">
+                Interviewed by @Model.InterviewerPersona - @Model.Mode mode
+                @(Model.CompletedAtUtc is not null ? $" - completed {Model.CompletedAtUtc:d MMMM yyyy}" : "")
+            </p>
+
+            <p class="verify-section-label">Competencies covered</p>
+            @if (Model.CompetencyNames.Count == 0)
+            {
+                <p class="text-muted">No competencies recorded.</p>
+            }
+            else
+            {
+                <div class="verify-competency-list">
+                    @foreach (var name in Model.CompetencyNames)
+                    {
+                        <span class="verify-competency-pill">@name</span>
+                    }
+                </div>
+            }
+        </div>
+        <div class="verify-footer">
+            Verified via HerProof - evidence before verification. This page confirms only that the
+            interview happened, grounded in the candidate's own code.
+        </div>
+    </div>
+</body>
+</html>

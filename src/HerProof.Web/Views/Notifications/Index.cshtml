@@ -1,0 +1,117 @@
+@model IReadOnlyList<HerProof.Domain.Notifications.Notification>
+@using HerProof.Domain.Identity
+@using HerProof.Domain.Notifications
+@{
+    var outreachById = (IReadOnlyDictionary<Guid, CandidateOutreach>)ViewBag.OutreachById;
+    ViewData["Title"] = "Notifications";
+
+    static string TypeLabel(NotificationType type) => type switch
+    {
+        NotificationType.CompetencyVerified => "Verified",
+        NotificationType.CompetencyNotDemonstrated => "Assessor review",
+        NotificationType.RecruiterInterest => "Employer interest",
+        NotificationType.NewOpportunity => "New opportunity",
+        NotificationType.CultureFitInterviewInvite => "Interview invite",
+        NotificationType.JobOffer => "Job offer",
+        _ => type.ToString(),
+    };
+
+    static string TypePillClass(NotificationType type) => type switch
+    {
+        NotificationType.CompetencyVerified => "status-pill status-pill-success",
+        NotificationType.RecruiterInterest => "status-pill status-pill-success",
+        NotificationType.JobOffer => "status-pill status-pill-success",
+        NotificationType.CultureFitInterviewInvite => "status-pill status-pill-success",
+        NotificationType.NewOpportunity => "status-pill",
+        _ => "status-pill status-pill-warning",
+    };
+}
+
+<div class="hero-wrap hero-wrap-tight">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">Notifications</span>
+        <h1>Notifications</h1>
+        <p class="lead lead-full mb-0">Assessor decisions, employer interest, and new opportunities as they're posted.</p>
+    </div>
+</div>
+
+<section class="brand-section brand-section-tight">
+    @if (Model.Any(n => n.ReadAtUtc is null))
+    {
+        <form asp-action="MarkAllRead" method="post" class="mb-3">
+            <button type="submit" class="btn-brand-outline btn-sm">Mark all as read</button>
+        </form>
+    }
+
+    @if (Model.Count == 0)
+    {
+        <div class="brand-card text-center">
+            <p class="mb-0 text-muted">Nothing yet - this fills up once an Assessor reviews one of your competencies, an employer reviews your application, or a new opportunity is posted.</p>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2">
+            @foreach (var notification in Model)
+            {
+                var outreach = notification.RelatedOutreachId is Guid outreachId ? outreachById.GetValueOrDefault(outreachId) : null;
+                var isInterviewInvite = notification.NotificationType == NotificationType.CultureFitInterviewInvite;
+                var isJobOffer = notification.NotificationType == NotificationType.JobOffer;
+
+                <div class="brand-card @(notification.ReadAtUtc is null ? "" : "opacity-75")">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <div>
+                            <span class="@TypePillClass(notification.NotificationType)">@TypeLabel(notification.NotificationType)</span>
+                            <p class="mb-0 mt-2">@notification.Message</p>
+                            <span class="repo-meta mt-1">@notification.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</span>
+                        </div>
+                        @if (notification.ReadAtUtc is null)
+                        {
+                            <form asp-action="MarkRead" asp-route-notificationId="@notification.Id" method="post">
+                                <button type="submit" class="btn-brand-outline btn-sm">Mark read</button>
+                            </form>
+                        }
+                    </div>
+
+                    @if (outreach is not null)
+                    {
+                        <div class="mt-3 pt-3" style="border-top: 1px solid var(--brand-pink-border, #f3c6d9);">
+                            @if (outreach.ResponseStatus == OutreachResponseStatus.Pending)
+                            {
+                                <form asp-action="RespondToOutreach" asp-route-outreachId="@outreach.Id" method="post" class="d-flex flex-wrap gap-2">
+                                    @if (isInterviewInvite)
+                                    {
+                                        <input type="hidden" name="status" value="@OutreachResponseStatus.Accepted" />
+                                        <button type="submit" class="btn-brand btn-sm">I'll attend</button>
+                                    }
+                                    else if (isJobOffer)
+                                    {
+                                        <input type="hidden" name="status" value="@OutreachResponseStatus.Accepted" />
+                                        <button type="submit" class="btn-brand btn-sm">Accept the offer</button>
+                                    }
+                                </form>
+                                <form asp-action="RespondToOutreach" asp-route-outreachId="@outreach.Id" method="post" class="d-flex flex-wrap gap-2 mt-2">
+                                    <input type="hidden" name="status" value="@OutreachResponseStatus.Declined" />
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                        @(isInterviewInvite ? "I can't make it" : "Decline")
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="status-pill @(outreach.ResponseStatus == OutreachResponseStatus.Accepted ? "status-pill-success" : "status-pill-danger")">
+                                    @(outreach.ResponseStatus == OutreachResponseStatus.Accepted
+                                        ? (isJobOffer ? "You accepted" : "You confirmed you'll attend")
+                                        : (isJobOffer ? "You declined" : "You said you can't make it"))
+                                </span>
+                                <span class="text-muted small d-block mt-1">Responded @outreach.RespondedAtUtc?.ToString("d MMM yyyy HH:mm")</span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</section>

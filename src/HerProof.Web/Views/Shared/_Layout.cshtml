@@ -1,10 +1,22 @@
-﻿<!DOCTYPE html>
+﻿@{
+    var currentController = (string?)ViewContext.RouteData.Values["controller"];
+    var currentAction = (string?)ViewContext.RouteData.Values["action"];
+    string NavActive(string controller, string? action = null)
+    {
+        var controllerMatches = string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase);
+        var actionMatches = action is null || string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase);
+        return controllerMatches && actionMatches ? "nav-link active" : "nav-link";
+    }
+}
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - HerProof</title>
     <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&display=swap" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/brand.css" asp-append-version="true" />
@@ -22,49 +34,117 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Opportunities" asp-action="Index">Opportunities</a>
+                            <a class="@NavActive("Home", "Index")" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
                         </li>
                         @if (User.IsInRole("Candidate"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Repositories" asp-action="Index">Repositories</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Interview" asp-action="Index">My interviews</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Passport" asp-action="Index">My Passport</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/my-profile">My Profile</a>
+                                <a class="@NavActive("Learning", "Roadmap")" asp-area="" asp-controller="Learning" asp-action="Roadmap">Not sure where to start?</a>
                             </li>
                         }
-                        @if (User.IsInRole("Assessor"))
+                        @if (!User.IsInRole("Assessor") && !User.IsInRole("Recruiter") && !User.IsInRole("Partner"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="AssessorDashboard" asp-action="Index">Assessor inbox @await Component.InvokeAsync("AssessorInboxBadge")</a>
+                                <a class="@NavActive("Opportunities")" asp-area="" asp-controller="Opportunities" asp-action="Index">Opportunities</a>
+                            </li>
+                        }
+                        @if (User.IsInRole("Candidate"))
+                        {
+                            <li class="nav-item">
+                                <a class="@NavActive("Repositories")" asp-area="" asp-controller="Repositories" asp-action="Index">Repositories</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="@NavActive("Interview")" asp-area="" asp-controller="Interview" asp-action="Index">Interviews</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="@NavActive("Passport")" asp-area="" asp-controller="Passport" asp-action="Index">Passport</a>
+                            </li>
+                        }
+                        @if (User.IsInRole("Recruiter") || User.IsInRole("Partner"))
+                        {
+                            @await Component.InvokeAsync("OrganisationHomeLink")
+                            <li class="nav-item">
+                                <a class="@NavActive("OrganisationCandidates")" asp-area="" asp-controller="OrganisationCandidates" asp-action="Index">Browse candidates</a>
                             </li>
                         }
                         @if (User.IsInRole("Administrator"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Admin" asp-action="Users">Admin</a>
+                                <a class="@NavActive("Admin")" asp-area="" asp-controller="Admin" asp-action="Users">Admin</a>
                             </li>
                         }
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                            <a class="@NavActive("Home", "Privacy")" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
                     </ul>
                     <ul class="navbar-nav align-items-sm-center">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <li class="nav-item">
-                                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                                    <button type="submit" class="btn btn-link nav-link">Log out</button>
-                                </form>
+                            @if (User.IsInRole("Candidate"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link nav-icon-link" asp-controller="Notifications" asp-action="Index" title="Notifications">
+                                        <span class="nav-icon-wrap">
+                                            <svg class="nav-icon nav-icon-lg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                <path d="M3.5 6.5h17a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+                                                <path d="M3 7l9 6.5L21 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            @await Component.InvokeAsync("NotificationBell")
+                                        </span>
+                                    </a>
+                                </li>
+                            }
+                            @if (User.IsInRole("Recruiter") || User.IsInRole("Partner"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link nav-icon-link" asp-controller="OrganisationCandidates" asp-action="Responses" title="Her responses to your outreach">
+                                        <span class="nav-icon-wrap">
+                                            <svg class="nav-icon nav-icon-lg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                <path d="M3.5 6.5h17a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+                                                <path d="M3 7l9 6.5L21 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            @await Component.InvokeAsync("RecruiterInboxBadge")
+                                        </span>
+                                    </a>
+                                </li>
+                            }
+                            @if (User.IsInRole("Assessor"))
+                            {
+                                <li class="nav-item dropdown">
+                                    <button class="btn btn-link nav-link nav-icon-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Assessor inbox">
+                                        <span class="nav-icon-wrap">
+                                            <svg class="nav-icon nav-icon-lg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                <path d="M3.5 6.5h17a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+                                                <path d="M3 7l9 6.5L21 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            @await Component.InvokeAsync("AssessorInboxBadge")
+                                        </span>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end inbox-preview-menu">
+                                        @await Component.InvokeAsync("AssessorInboxPreview")
+                                    </ul>
+                                </li>
+                            }
+                            <li class="nav-item dropdown">
+                                <button class="btn btn-link nav-link nav-icon-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Account menu">
+                                    <svg class="nav-icon nav-icon-kebab" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                        <circle cx="12" cy="5" r="2.1" />
+                                        <circle cx="12" cy="12" r="2.1" />
+                                        <circle cx="12" cy="19" r="2.1" />
+                                    </svg>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    @if (User.IsInRole("Candidate"))
+                                    {
+                                        <li><a class="dropdown-item" href="/my-profile">Profile</a></li>
+                                        <li><hr class="dropdown-divider" /></li>
+                                    }
+                                    <li>
+                                        <form asp-controller="Account" asp-action="Logout" method="post">
+                                            <button type="submit" class="dropdown-item">Log out</button>
+                                        </form>
+                                    </li>
+                                </ul>
                             </li>
                         }
                         else
@@ -107,9 +187,13 @@
                     <a asp-controller="Partner" asp-action="Index">Partner with us</a>
                 </div>
             </div>
-            <div class="footer-bottom">&copy; 2026 HerProof. Built for the SheCode Hackathon.</div>
+            <div class="footer-bottom">&copy; 2026 HerProof. Built for the SheCode Hackathon, hosted by <a href="https://www.shecodesfoundation.org/" target="_blank" rel="noopener">SheCode Foundation</a>.</div>
         </div>
     </footer>
+    @if (User.IsInRole("Candidate"))
+    {
+        @await Html.PartialAsync("_CareerGuideWidget")
+    }
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>

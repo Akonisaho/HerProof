@@ -10,14 +10,19 @@
     var alreadyApplied = (bool)ViewBag.AlreadyApplied;
     var gapReport = (GapReport?)ViewBag.GapReport;
     var learningProgressByResourceId = ViewBag.LearningProgressByResourceId as IReadOnlyDictionary<Guid, LearningProgressStatus> ?? new Dictionary<Guid, LearningProgressStatus>();
+    var learningResourcesByCompetencyId = ViewBag.LearningResourcesByCompetencyId as IReadOnlyDictionary<Guid, LearningResource> ?? new Dictionary<Guid, LearningResource>();
     var candidateCompetencyStatusByCompetencyId = ViewBag.CandidateCompetencyStatusByCompetencyId as IReadOnlyDictionary<Guid, CandidateCompetencyStatus> ?? new Dictionary<Guid, CandidateCompetencyStatus>();
     var ownedCredentials = ViewBag.OwnedCredentials as List<(string CredentialIdentifier, string CompetencyName)> ?? [];
+    var assessmentsByCompetencyId = ViewBag.AssessmentsByCompetencyId as IReadOnlyDictionary<Guid, List<(Guid Id, string Title, string AssessmentType, int DurationMinutes)>>
+        ?? new Dictionary<Guid, List<(Guid Id, string Title, string AssessmentType, int DurationMinutes)>>();
     var currentUrl = Context.Request.Path + Context.Request.QueryString;
+    var linkedAssessment = ViewBag.LinkedAssessment as (Guid Id, string Title, string AssessmentType, int DurationMinutes)?;
 
     var pillClass = Model.OpportunityType switch
     {
         OpportunityType.Bursary => "opportunity-pill opportunity-pill-bursary",
         OpportunityType.Internship => "opportunity-pill opportunity-pill-internship",
+        OpportunityType.Hackathon => "opportunity-pill opportunity-pill-hackathon",
         _ => "opportunity-pill opportunity-pill-job",
     };
 
@@ -48,21 +53,21 @@
 
         if (min is not null && (max is null || max == min))
         {
-            return $"${min:N0}";
+            return $"R{min:N0}";
         }
 
         if (min is null && max is not null)
         {
-            return $"Up to ${max:N0}";
+            return $"Up to R{max:N0}";
         }
 
-        return $"${min:N0} – ${max:N0}";
+        return $"R{min:N0} – R{max:N0}";
     }
 }
 
 <p class="mt-3"><a asp-action="Index">← Back to opportunities</a></p>
 
-<div class="hero-wrap">
+<div class="hero-wrap hero-wrap-tight">
     <div class="hero-blob hero-blob-1"></div>
     <div class="hero-blob hero-blob-2"></div>
     <div class="hero hero-compact">
@@ -88,13 +93,29 @@
     </div>
 </div>
 
-<section class="brand-section">
+@if (User.IsInRole("Candidate") && linkedAssessment is var (assessmentId, assessmentTitle, assessmentType, durationMinutes) && assessmentTitle is not null)
+{
+    <section class="brand-section brand-section-tight pb-0">
+        <div class="brand-card">
+            <h3 class="h5 mb-2">Take the test for this role</h3>
+            <p class="mb-2">
+                This role has its own practical assessment: <strong>@assessmentTitle</strong>
+                (@assessmentType &middot; @durationMinutes min).
+            </p>
+            <form asp-controller="AssessmentSessions" asp-action="Start" asp-route-assessmentId="@assessmentId" method="post">
+                <button type="submit" class="btn-brand">Take the test for this role</button>
+            </form>
+        </div>
+    </section>
+}
+
+<section class="brand-section brand-section-tight">
     <h2>Required competencies</h2>
     @if (gapReport is not null)
     {
         <p class="text-muted">
-            Three distinct states - none of them a zero (CLAUDE.md rule 2): <strong>Demonstrated</strong>,
-            <strong>Not yet assessed</strong> (claimed or no evidence), and <strong>Not demonstrated</strong> (assessed and found wanting).
+            Here's exactly where you stand on each skill this role needs - and what to do next for
+            anything that isn't demonstrated yet.
         </p>
         <div class="d-flex flex-column gap-3 mb-3">
             @foreach (var item in gapReport.Items)
@@ -104,7 +125,41 @@
                     <strong>@competencyNames.GetValueOrDefault(item.CompetencyId, "(unknown)")</strong>
  - required level @item.RequiredLevel
                     @(item.DemonstratedLevel is not null ? $", demonstrated level {item.DemonstratedLevel}" : "")
-                    <div class="text-muted small mt-1">@item.Explanation</div>
+                    <div class="text-muted small mt-1">
+                        @item.Explanation
+                        @if (learningResourcesByCompetencyId.TryGetValue(item.CompetencyId, out var learningResource))
+                        {
+                            <a href="@learningResource.Url" target="_blank" rel="noopener">@learningResource.Url</a>
+                        }
+                    </div>
+
+                    @if (item.EvidenceState != EvidenceState.Demonstrated)
+                    {
+                        var matchingAssessments = assessmentsByCompetencyId.GetValueOrDefault(item.CompetencyId, []);
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            @if (matchingAssessments.Count > 0)
+                            {
+                                @foreach (var a in matchingAssessments)
+                                {
+                                    <form asp-controller="AssessmentSessions" asp-action="Start" asp-route-assessmentId="@a.Id" method="post">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">Take the @a.AssessmentType assessment (@a.DurationMinutes min)</button>
+                                    </form>
+                                }
+                            }
+                            else
+                            {
+                                <a asp-controller="AssessmentSessions" asp-action="Browse" class="btn btn-sm btn-outline-primary">Browse practical assessments</a>
+                            }
+                            <a asp-controller="Repositories" asp-action="Index" class="btn btn-sm btn-outline-primary">Submit a repository</a>
+                        </div>
+                        <div class="text-muted small mt-1">
+                            @if (matchingAssessments.Count == 0)
+                            {
+                                <text>No practical assessment covers this specific skill yet - browse to find one close to it, or submit a repository that shows it instead.</text>
+                            }
+                            Finish either one, come back to this page, and once an Assessor reviews it this will update to Demonstrated.
+                        </div>
+                    }
 
                     @if (item.LearningResourceId is not null)
                     {
@@ -133,6 +188,26 @@
                     }
                 </div>
             }
+        </div>
+
+        <div class="brand-card mb-3">
+            <h3 class="h5 mb-3">What happens after</h3>
+            <div class="d-flex flex-column gap-2">
+                <div class="d-flex align-items-start gap-2">
+                    <span class="status-pill">1</span>
+                    <div>
+                        <span>Interview with Nolwazi</span>
+                        <div class="text-muted small">If you submit a repository, "Prove your skills with Nolwazi" appears there once its analysis finishes.</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start gap-2">
+                    <span class="status-pill">2</span>
+                    <div>
+                        <span>Get verified</span>
+                        <div class="text-muted small">A named human Assessor reviews the evidence and makes the final verification decision - never AI.</div>
+                    </div>
+                </div>
+            </div>
         </div>
     }
     else

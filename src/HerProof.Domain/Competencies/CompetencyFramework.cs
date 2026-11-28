@@ -220,3 +220,24 @@ public class LearningResource : Entity
         TargetLevel = targetLevel;
     }
 }
+
+/// <summary>"Languages/competencies I want to be tested on" - a candidate's own declared interest,
+/// independent of any specific opportunity. Purely informational (CLAUDE.md rule 2 doesn't apply
+/// here: this is not evidence of anything, just a preference the candidate can act on).</summary>
+public class CandidatePreferredCompetency : Entity
+{
+    public Guid CandidateId { get; init; }
+    public Guid CompetencyId { get; init; }
+    public DateTime CreatedAtUtc { get; init; }
+
+    private CandidatePreferredCompetency()
+    {
+    }
+
+    public CandidatePreferredCompetency(Guid candidateId, Guid competencyId, DateTime createdAtUtc)
+    {
+        CandidateId = candidateId;
+        CompetencyId = competencyId;
+        CreatedAtUtc = createdAtUtc;
+    }
+}

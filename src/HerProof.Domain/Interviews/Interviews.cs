@@ -103,16 +103,32 @@ public class InterviewQuestion : Entity
         QuestionOrder = questionOrder;
     }
 
-    /// <summary>Probe ladder: maximum three probes per question (docs/01 section 7, docs/06).</summary>
+    /// <summary>No follow-ups: every question gets exactly one answer, then moves on - fast by design
+    /// for a live demo with a deliberately short question set. Blocks both Probe and Clarify kinds
+    /// (previously only Probe was blocked here, which left Clarify uncapped - closed as part of this
+    /// change, not just lowering a number).</summary>
     public InterviewTurn AddTurn(TurnKind turnKind, string promptText, DateTime createdAtUtc)
     {
-        var probeCount = _turns.Count(t => t.TurnKind == TurnKind.Probe);
-        if (turnKind == TurnKind.Probe && probeCount >= 3)
+        if (turnKind is TurnKind.Probe or TurnKind.Clarify)
         {
-            throw new InvalidOperationException("Maximum of three probes per question has been reached.");
+            throw new InvalidOperationException("Follow-up questions are disabled - every question moves on after one answer.");
         }
 
         var turn = new InterviewTurn(Id, _turns.Count, turnKind, promptText, createdAtUtc);
+        _turns.Add(turn);
+        return turn;
+    }
+
+    public int ProbePromptCount() => _turns.Count(t => t.TurnKind == TurnKind.Probe && t.TranscriptRaw is null);
+
+    /// <summary>Append-only (CLAUDE.md rule 8): once a turn is persisted it may never be mutated, so
+    /// recording the candidate's reply to it means appending a brand-new row - carrying the same
+    /// prompt plus the answer - rather than editing the original prompt-only row. Bypasses AddTurn's
+    /// probe cap because this records a reply to an existing prompt, not a new one.</summary>
+    public InterviewTurn RecordAnswerTurn(InterviewTurn promptTurn, string transcriptRaw, string? recordingReference, int durationSeconds, DateTime nowUtc)
+    {
+        var turn = new InterviewTurn(Id, _turns.Count, promptTurn.TurnKind, promptTurn.PromptText, nowUtc);
+        turn.RecordAnswer(transcriptRaw, recordingReference, durationSeconds);
         _turns.Add(turn);
         return turn;
     }

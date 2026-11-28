@@ -6,7 +6,7 @@ using Microsoft.Extensions.Caching.Memory;
 namespace HerProof.Infrastructure.Speech;
 
 /// <summary>Caches synthesized audio by a hash of the text (docs/06 section 9 point 1: "cache by text
-/// hash"). Thandi asks a fixed catalogue of scripted phrases ("Can you say more?", "Let's move on")
+/// hash"). Nolwazi asks a fixed catalogue of scripted phrases ("Can you say more?", "Let's move on")
 /// across many interviews, so this meaningfully cuts both latency and provider cost.</summary>
 public class CachingTextToSpeech(ITextToSpeech inner, IMemoryCache cache) : ITextToSpeech
 {

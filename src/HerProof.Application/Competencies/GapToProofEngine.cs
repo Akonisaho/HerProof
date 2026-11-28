@@ -66,7 +66,7 @@ public static class GapToProofEngine
         var recommendation = state == EvidenceState.Demonstrated && demonstratedLevel >= requiredLevel
             ? "No action needed for this competency."
             : learningResource is not null
-                ? $"Recommended: {learningResource.Title} ({learningResource.Url})."
+                ? $"Recommended: {learningResource.Title}."
                 : "Request an assessment to close this gap.";
 
         return $"{why} {status} {recommendation}";

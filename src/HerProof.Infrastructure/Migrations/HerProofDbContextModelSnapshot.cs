@@ -47,6 +47,12 @@ namespace HerProof.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("duration_minutes");
 
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("language");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -63,6 +69,8 @@ namespace HerProof.Infrastructure.Migrations
 
                     b.ToTable("assessments", null, t =>
                         {
+                            t.HasCheckConstraint("ck_assessment_language_enum", "\"language\" IN ('CSharp', 'Java')");
+
                             t.HasCheckConstraint("ck_assessment_status_enum", "\"status\" IN ('Draft', 'Published', 'Archived')");
                         });
                 });
@@ -113,6 +121,10 @@ namespace HerProof.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("file_name");
+
+                    b.Property<string>("HiddenTestCode")
+                        .HasColumnType("text")
+                        .HasColumnName("hidden_test_code");
 
                     b.Property<int>("Order")
                         .HasColumnType("integer")
@@ -470,6 +482,37 @@ namespace HerProof.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("HerProof.Domain.Competencies.CandidatePreferredCompetency", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<Guid>("CompetencyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("competency_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_candidate_preferred_competencies");
+
+                    b.HasIndex("CandidateId")
+                        .HasDatabaseName("ix_candidate_preferred_competencies_candidate_id");
+
+                    b.HasIndex("CompetencyId")
+                        .HasDatabaseName("ix_candidate_preferred_competencies_competency_id");
+
+                    b.ToTable("candidate_preferred_competencies", (string)null);
+                });
+
             modelBuilder.Entity("HerProof.Domain.Competencies.Competency", b =>
                 {
                     b.Property<Guid>("Id")
@@ -736,6 +779,54 @@ namespace HerProof.Infrastructure.Migrations
                     b.ToTable("learning_resources", (string)null);
                 });
 
+            modelBuilder.Entity("HerProof.Domain.Competencies.RoadmapStepCompletion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AssessmentSessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assessment_session_id");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<Guid>("CompetencyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("competency_id");
+
+                    b.Property<DateTime>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<string>("Goal")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("goal");
+
+                    b.Property<bool>("VerifiedByAssessor")
+                        .HasColumnType("boolean")
+                        .HasColumnName("verified_by_assessor");
+
+                    b.HasKey("Id")
+                        .HasName("pk_roadmap_step_completions");
+
+                    b.HasIndex("CandidateId")
+                        .HasDatabaseName("ix_roadmap_step_completions_candidate_id");
+
+                    b.HasIndex("CompetencyId")
+                        .HasDatabaseName("ix_roadmap_step_completions_competency_id");
+
+                    b.HasIndex("CandidateId", "Goal", "CompetencyId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_roadmap_step_completions_candidate_id_goal_competency_id");
+
+                    b.ToTable("roadmap_step_completions", (string)null);
+                });
+
             modelBuilder.Entity("HerProof.Domain.Consent.ConsentRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -854,6 +945,74 @@ namespace HerProof.Infrastructure.Migrations
                     b.ToTable("experience_records", null, t =>
                         {
                             t.HasCheckConstraint("ck_experience_record_category_enum", "\"category\" IN ('Caregiving', 'Household', 'Community', 'Freelance', 'Volunteer', 'Other')");
+                        });
+                });
+
+            modelBuilder.Entity("HerProof.Domain.Identity.CandidateOutreach", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<string>("OutreachType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("outreach_type");
+
+                    b.Property<DateTime?>("RecruiterSeenAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recruiter_seen_at_utc");
+
+                    b.Property<Guid>("RecruiterUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recruiter_user_id");
+
+                    b.Property<DateTime?>("RespondedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responded_at_utc");
+
+                    b.Property<string>("ResponseMessage")
+                        .HasColumnType("text")
+                        .HasColumnName("response_message");
+
+                    b.Property<string>("ResponseStatus")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("response_status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_candidate_outreaches");
+
+                    b.HasIndex("CandidateId")
+                        .HasDatabaseName("ix_candidate_outreaches_candidate_id");
+
+                    b.HasIndex("RecruiterUserId")
+                        .HasDatabaseName("ix_candidate_outreaches_recruiter_user_id");
+
+                    b.HasIndex("RecruiterUserId", "CandidateId")
+                        .HasDatabaseName("ix_candidate_outreaches_recruiter_user_id_candidate_id");
+
+                    b.ToTable("candidate_outreaches", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_candidate_outreach_outreach_type_enum", "\"outreach_type\" IN ('CultureFitInterview', 'JobOffer')");
+
+                            t.HasCheckConstraint("ck_candidate_outreach_response_status_enum", "\"response_status\" IN ('Pending', 'Accepted', 'Declined')");
                         });
                 });
 
@@ -1085,6 +1244,7 @@ namespace HerProof.Infrastructure.Migrations
                         .HasName("pk_interview_evaluations");
 
                     b.HasIndex("TurnId")
+                        .IsUnique()
                         .HasDatabaseName("ix_interview_evaluations_turn_id");
 
                     b.ToTable("interview_evaluations", null, t =>
@@ -1152,10 +1312,6 @@ namespace HerProof.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("duration_seconds");
 
-                    b.Property<Guid?>("EvaluationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("evaluation_id");
-
                     b.Property<Guid?>("InterviewQuestionId")
                         .HasColumnType("uuid")
                         .HasColumnName("interview_question_id");
@@ -1194,9 +1350,6 @@ namespace HerProof.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_interview_turns");
 
-                    b.HasIndex("EvaluationId")
-                        .HasDatabaseName("ix_interview_turns_evaluation_id");
-
                     b.HasIndex("InterviewQuestionId")
                         .HasDatabaseName("ix_interview_turns_interview_question_id");
 
@@ -1206,6 +1359,56 @@ namespace HerProof.Infrastructure.Migrations
                     b.ToTable("interview_turns", null, t =>
                         {
                             t.HasCheckConstraint("ck_interview_turn_turn_kind_enum", "\"turn_kind\" IN ('Question', 'Probe', 'Clarify')");
+                        });
+                });
+
+            modelBuilder.Entity("HerProof.Domain.Notifications.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<string>("NotificationType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("notification_type");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at_utc");
+
+                    b.Property<Guid?>("RelatedCompetencyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("related_competency_id");
+
+                    b.Property<Guid?>("RelatedOutreachId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("related_outreach_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notifications");
+
+                    b.HasIndex("CandidateId")
+                        .HasDatabaseName("ix_notifications_candidate_id");
+
+                    b.ToTable("notifications", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_notification_notification_type_enum", "\"notification_type\" IN ('CompetencyVerified', 'CompetencyNotDemonstrated', 'RecruiterInterest', 'NewOpportunity', 'CultureFitInterviewInvite', 'JobOffer')");
                         });
                 });
 
@@ -1325,6 +1528,10 @@ namespace HerProof.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("experience_years_required");
 
+                    b.Property<Guid?>("LinkedAssessmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("linked_assessment_id");
+
                     b.Property<string>("Location")
                         .HasColumnType("text")
                         .HasColumnName("location");
@@ -1366,7 +1573,7 @@ namespace HerProof.Infrastructure.Migrations
 
                     b.ToTable("opportunities", null, t =>
                         {
-                            t.HasCheckConstraint("ck_opportunity_opportunity_type_enum", "\"opportunity_type\" IN ('Job', 'Internship', 'Learnership', 'Bursary')");
+                            t.HasCheckConstraint("ck_opportunity_opportunity_type_enum", "\"opportunity_type\" IN ('Job', 'Internship', 'Learnership', 'Bursary', 'Hackathon')");
 
                             t.HasCheckConstraint("ck_opportunity_status_enum", "\"status\" IN ('Draft', 'Published', 'Closed')");
                         });
@@ -2303,6 +2510,16 @@ namespace HerProof.Infrastructure.Migrations
                         .HasConstraintName("fk_experience_competencies_experience_records_experience_recor");
                 });
 
+            modelBuilder.Entity("HerProof.Domain.Interviews.InterviewEvaluation", b =>
+                {
+                    b.HasOne("HerProof.Domain.Interviews.InterviewTurn", null)
+                        .WithOne("Evaluation")
+                        .HasForeignKey("HerProof.Domain.Interviews.InterviewEvaluation", "TurnId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_interview_evaluations_interview_turns_turn_id");
+                });
+
             modelBuilder.Entity("HerProof.Domain.Interviews.InterviewQuestion", b =>
                 {
                     b.HasOne("HerProof.Domain.Interviews.Interview", null)
@@ -2315,17 +2532,10 @@ namespace HerProof.Infrastructure.Migrations
 
             modelBuilder.Entity("HerProof.Domain.Interviews.InterviewTurn", b =>
                 {
-                    b.HasOne("HerProof.Domain.Interviews.InterviewEvaluation", "Evaluation")
-                        .WithMany()
-                        .HasForeignKey("EvaluationId")
-                        .HasConstraintName("fk_interview_turns_interview_evaluations_evaluation_id");
-
                     b.HasOne("HerProof.Domain.Interviews.InterviewQuestion", null)
                         .WithMany("Turns")
                         .HasForeignKey("InterviewQuestionId")
                         .HasConstraintName("fk_interview_turns_interview_questions_interview_question_id");
-
-                    b.Navigation("Evaluation");
                 });
 
             modelBuilder.Entity("HerProof.Domain.Opportunities.EligibilityRule", b =>
@@ -2476,6 +2686,11 @@ namespace HerProof.Infrastructure.Migrations
             modelBuilder.Entity("HerProof.Domain.Interviews.InterviewQuestion", b =>
                 {
                     b.Navigation("Turns");
+                });
+
+            modelBuilder.Entity("HerProof.Domain.Interviews.InterviewTurn", b =>
+                {
+                    b.Navigation("Evaluation");
                 });
 
             modelBuilder.Entity("HerProof.Domain.Opportunities.Opportunity", b =>

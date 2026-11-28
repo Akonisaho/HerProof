@@ -1,0 +1,28 @@
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+@{
+    var token = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+<input type="hidden" id="career-guide-csrf" value="@token" />
+
+<div id="career-guide-widget">
+    <button type="button" id="career-guide-toggle" aria-label="Chat with a career guide">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+        </svg>
+    </button>
+
+    <div id="career-guide-panel" hidden>
+        <div class="career-guide-header">
+            <strong>Career guide</strong>
+            <span class="text-muted small d-block">Not sure where to start? Just ask.</span>
+        </div>
+        <div id="career-guide-messages" class="career-guide-messages"></div>
+        <form id="career-guide-form" class="career-guide-form">
+            <input type="text" id="career-guide-input" placeholder="e.g. I want to become a data analyst" autocomplete="off" />
+            <button type="button" class="btn-brand btn-sm">Send</button>
+        </form>
+    </div>
+</div>
+
+<script src="~/js/career-guide.js" asp-append-version="true"></script>

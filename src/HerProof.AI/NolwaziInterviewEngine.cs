@@ -6,11 +6,11 @@ using Microsoft.Extensions.Logging;
 
 namespace HerProof.AI;
 
-/// <summary>Thandi, text-first (docs/06). Generates questions grounded in real repo evidence and
+/// <summary>Nolwazi, text-first (docs/06). Generates questions grounded in real repo evidence and
 /// evaluates each answer turn, with the same discipline as the repository analysis pipeline: schema
 /// validation, snippet verification against the pinned commit, a forbidden-content filter on every
 /// piece of free text, a hard probe cap, and retry-once-then-fail-safe on bad model output.</summary>
-public class ThandiInterviewEngine(IAIService aiService, string interviewerName, ILogger<ThandiInterviewEngine>? logger = null)
+public class NolwaziInterviewEngine(IAIService aiService, string interviewerName, ILogger<NolwaziInterviewEngine>? logger = null)
 {
     public const string PromptVersion = "thandi-interview-v1";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -30,7 +30,7 @@ public class ThandiInterviewEngine(IAIService aiService, string interviewerName,
 
         if (dto?.Questions is null)
         {
-            logger?.LogWarning("Thandi question generation: model response could not be parsed into any questions at all (both attempts failed).");
+            logger?.LogWarning("Nolwazi question generation: model response could not be parsed into any questions at all (both attempts failed).");
             return [];
         }
 
@@ -39,7 +39,7 @@ public class ThandiInterviewEngine(IAIService aiService, string interviewerName,
         {
             if (string.IsNullOrWhiteSpace(q.CompetencyName) || string.IsNullOrWhiteSpace(q.Text))
             {
-                logger?.LogWarning("Thandi question dropped: missing competency name or text.");
+                logger?.LogWarning("Nolwazi question dropped: missing competency name or text.");
                 continue;
             }
 
@@ -47,21 +47,21 @@ public class ThandiInterviewEngine(IAIService aiService, string interviewerName,
             {
                 var available = string.Join(", ", content.Files.Select(f => f.Path));
                 logger?.LogWarning(
-                    "Thandi question dropped: snippet {Path}:{Lines} not found in fetched content. Fetched files were: {Available}",
+                    "Nolwazi question dropped: snippet {Path}:{Lines} not found in fetched content. Fetched files were: {Available}",
                     q.SnippetFilePath, q.SnippetLines, available);
                 continue;
             }
 
             if (ForbiddenContentFilter.ContainsForbiddenContent(q.Text))
             {
-                logger?.LogWarning("Thandi question dropped: forbidden content filter matched.");
+                logger?.LogWarning("Nolwazi question dropped: forbidden content filter matched.");
                 continue;
             }
 
             kept.Add(new GeneratedQuestion(q.CompetencyName, q.Text, q.SnippetFilePath, q.SnippetLines, q.ExpectedPoints ?? [], q.Difficulty));
         }
 
-        logger?.LogInformation("Thandi question generation: {Kept}/{Total} questions survived filtering.", kept.Count, dto.Questions.Count);
+        logger?.LogInformation("Nolwazi question generation: {Kept}/{Total} questions survived filtering.", kept.Count, dto.Questions.Count);
         return kept;
     }
 
@@ -87,8 +87,10 @@ public class ThandiInterviewEngine(IAIService aiService, string interviewerName,
             return null;
         }
 
-        // Hard cap regardless of what the model says (docs/06 section 4): three probes, no more.
-        if (nextAction == NextAction.Probe && probeCountSoFar >= 3)
+        // Hard cap regardless of what the model says: no follow-ups at all - every question moves on
+        // after exactly one answer. Fast by design for a live demo with a deliberately short question
+        // set (docs/00-PITCH.md demo script).
+        if (nextAction is NextAction.Probe or NextAction.Clarify)
         {
             nextAction = NextAction.MoveOn;
         }
@@ -143,12 +145,12 @@ public class ThandiInterviewEngine(IAIService aiService, string interviewerName,
         {
             var completion = await aiService.CompleteJsonAsync(systemPrompt, userContent, PromptVersion, cancellationToken);
             var normalizedJson = LlmJsonKeyNormalizer.ToCamelCaseKeys(completion.RawJson);
-            logger?.LogInformation("Thandi raw AI JSON: {Raw}", completion.RawJson);
+            logger?.LogInformation("Nolwazi raw AI JSON: {Raw}", completion.RawJson);
             return JsonSerializer.Deserialize<T>(normalizedJson, JsonOptions);
         }
         catch (Exception ex) when (cancellationToken.IsCancellationRequested == false)
         {
-            logger?.LogWarning(ex, "Thandi AI completion failed to parse.");
+            logger?.LogWarning(ex, "Nolwazi AI completion failed to parse.");
             return null;
         }
     }

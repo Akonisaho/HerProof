@@ -18,3 +18,8 @@ electron-app/coverage/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local run logs / scratch
+.web-run.log
+.worker-run.log
+docker/sandbox-test-template.csproj

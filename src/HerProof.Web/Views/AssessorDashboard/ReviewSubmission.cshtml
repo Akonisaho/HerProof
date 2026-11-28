@@ -1,0 +1,86 @@
+@model HerProof.Web.Models.Assessments.SubmissionReviewViewModel
+@{
+    ViewData["Title"] = "Review submission";
+}
+
+<div class="hero-wrap">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">Review submission</span>
+        <h1>@Model.CandidateName &middot; @Model.AssessmentTitle</h1>
+        <p class="opportunity-meta mb-0">
+            Her actual submitted code, question by question, next to the hidden test and the sandbox's own result.
+        </p>
+    </div>
+</div>
+
+<section class="brand-section">
+
+    @if (!string.IsNullOrWhiteSpace(Model.TestResultsJson))
+    {
+        <div class="brand-card mb-4">
+            <h3 class="h6 text-uppercase text-muted mb-3">Automated sandbox result</h3>
+            <pre class="code-view mb-0">@Model.TestResultsJson</pre>
+        </div>
+    }
+
+    <div class="d-flex flex-column gap-4">
+        @foreach (var q in Model.Questions)
+        {
+            <div class="brand-card">
+                <div class="mb-3">
+                    <h3 class="h5 mb-1">@q.Title</h3>
+                    <code class="small text-muted">@q.FileName</code>
+                    <p class="small text-muted mt-2 mb-0">@q.Prompt</p>
+                </div>
+
+                <div class="row g-3">
+                    <div class="@(string.IsNullOrWhiteSpace(q.HiddenTestCode) ? "col-12" : "col-md-6")">
+                        <span class="code-view-label">Her submitted code</span>
+                        <pre class="code-view">@(q.SubmittedContent ?? "(no file submitted for this question)")</pre>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(q.HiddenTestCode))
+                    {
+                        <div class="col-md-6">
+                            <span class="code-view-label">Hidden test &middot; <span class="text-muted fw-normal">never shown to her</span></span>
+                            <pre class="code-view">@q.HiddenTestCode</pre>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="mt-4">
+        @if (Model.ExistingReview is not null)
+        {
+            <div class="brand-card" style="border-color: var(--brand-success);">
+                <span class="status-pill status-pill-success mb-2 d-inline-block">@Model.ExistingReview.ReviewStatus</span>
+                <p class="mb-1">@Model.ExistingReview.Feedback</p>
+                <span class="text-muted small">Reviewed @Model.ExistingReview.ReviewedAtUtc.ToString("u")</span>
+            </div>
+        }
+        else
+        {
+            <div class="brand-card">
+                <h3 class="h5 mb-3">Your review</h3>
+                <form asp-action="SubmitReview" asp-route-submissionId="@Model.SubmissionId" method="post">
+                    <div class="mb-3">
+                        <label class="form-label">Review status</label>
+                        <select name="ReviewStatus" class="form-select">
+                            <option value="Approved">Approved - demonstrates the skill</option>
+                            <option value="NeedsRevision">Needs revision</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Feedback</label>
+                        <textarea name="Feedback" class="form-control" rows="4" required></textarea>
+                    </div>
+                    <button type="submit" class="btn-brand">Submit review</button>
+                </form>
+            </div>
+        }
+    </div>
+
+</section>

@@ -2,6 +2,8 @@ using System.Text.Json;
 using HerProof.Application.Assessments;
 using HerProof.Application.Repositories;
 using HerProof.Application.Sandbox;
+using HerProof.Domain.Assessments;
+using HerProof.Domain.Competencies;
 using HerProof.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,17 +57,23 @@ public class AssessmentEvaluationBackgroundService(IServiceScopeFactory scopeFac
         var session = await db.AssessmentSessions.FirstAsync(s => s.Id == submission.SessionId, cancellationToken);
         var assessment = await db.Assessments
             .Include(a => a.RubricCriteria)
+            .Include(a => a.Questions)
             .FirstAsync(a => a.Id == session.AssessmentId, cancellationToken);
 
         logger.LogInformation("Claimed submission {SubmissionId} for assessment {AssessmentId}", submission.Id, assessment.Id);
 
         try
         {
-            var files = JsonSerializer.Deserialize<List<SubmittedFile>>(submission.SubmissionReference) ?? [];
+            var submittedFiles = JsonSerializer.Deserialize<List<SubmittedFile>>(submission.SubmissionReference) ?? [];
+            var questionTests = assessment.Questions
+                .Select(q => (q.FileName, q.HiddenTestCode))
+                .ToList();
+            var sandboxLanguage = assessment.Language == AssessmentLanguage.Java ? SandboxLanguage.Java : SandboxLanguage.CSharp;
+            var files = AssessmentSandboxProjectScaffold.Build(submittedFiles, questionTests, sandboxLanguage);
             var content = new FetchedRepositoryContent("submission", files.Select(f => new FetchedRepositoryFile(f.Path, f.Content)).ToList());
 
             var sandboxRunner = scope.ServiceProvider.GetRequiredService<ISandboxRunner>();
-            var sandboxResult = await SandboxWorkspace.WithMaterializedContentAsync(content, path => sandboxRunner.RunAsync(path, cancellationToken));
+            var sandboxResult = await SandboxWorkspace.WithMaterializedContentAsync(content, path => sandboxRunner.RunAsync(path, sandboxLanguage, cancellationToken));
 
             var criteria = assessment.RubricCriteria.Select(c => (c.Id, c.Name, c.Weight)).ToList();
             var scoring = AssessmentScoring.Score(criteria, sandboxResult.RestoreOk, sandboxResult.BuildOk, sandboxResult.TestsOk, sandboxResult.Executed);
@@ -79,6 +87,7 @@ public class AssessmentEvaluationBackgroundService(IServiceScopeFactory scopeFac
 
             submission.RecordAutomatedResults(resultJson);
             session.MarkEvaluated();
+            await EnsureEvidenceSubmittedAsync(db, session.CandidateId, assessment.Id, submission.Id, cancellationToken);
 
             logger.LogInformation("Evaluated submission {SubmissionId}: overall score {Score}", submission.Id, scoring.OverallScore);
         }
@@ -92,6 +101,42 @@ public class AssessmentEvaluationBackgroundService(IServiceScopeFactory scopeFac
 
         await db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    /// <summary>The same real gap InterviewController.EnsureEvidenceSubmittedAsync closed for
+    /// interviews: until now, a candidate could submit and pass a practical assessment and it would
+    /// never reach the Assessor inbox at all, because nothing here ever touched CandidateCompetency -
+    /// the inbox (AssessorDashboardController.Index) only lists EvidenceSubmitted/UnderAssessment/
+    /// AssessmentCompleted rows. One row per competency this assessment actually covers (via
+    /// AssessmentCompetencies), evidenced by this submission's id.</summary>
+    private static async Task EnsureEvidenceSubmittedAsync(HerProofDbContext db, Guid candidateId, Guid assessmentId, Guid submissionId, CancellationToken cancellationToken)
+    {
+        var competencyIds = await db.AssessmentCompetencies.AsNoTracking()
+            .Where(ac => ac.AssessmentId == assessmentId)
+            .Select(ac => ac.CompetencyId)
+            .ToListAsync(cancellationToken);
+        if (competencyIds.Count == 0)
+        {
+            return;
+        }
+
+        var existing = await db.CandidateCompetencies
+            .Where(cc => cc.CandidateId == candidateId && competencyIds.Contains(cc.CompetencyId))
+            .ToDictionaryAsync(cc => cc.CompetencyId, cancellationToken);
+
+        foreach (var competencyId in competencyIds)
+        {
+            if (!existing.TryGetValue(competencyId, out var candidateCompetency))
+            {
+                candidateCompetency = new CandidateCompetency(candidateId, competencyId, declaredLevel: null, DateTime.UtcNow);
+                db.CandidateCompetencies.Add(candidateCompetency);
+            }
+
+            // db.Add here, not relying on the collection navigation - the same EF mistracking gotcha
+            // InterviewController.EnsureEvidenceSubmittedAsync already documents and works around.
+            var evidence = candidateCompetency.AddEvidence("PracticalAssessment", submissionId.ToString(), $"Practical assessment submitted {DateTime.UtcNow:u}.", DateTime.UtcNow);
+            db.Add(evidence);
+        }
     }
 
     private static async Task<Guid?> ClaimNextUnevaluatedSubmissionAsync(HerProofDbContext db, CancellationToken cancellationToken)

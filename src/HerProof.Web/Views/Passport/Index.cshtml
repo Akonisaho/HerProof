@@ -1,122 +1,246 @@
 @model HerProof.Web.Models.Passports.PassportDashboardViewModel
+@using HerProof.Domain.Passports
 @{
     ViewData["Title"] = "My Skills Passport";
-    var shareToken = TempData["ShareToken"] as string;
-    var shareId = TempData["ShareId"] as string;
-}
+    var shareVerifyUrl = TempData["ShareVerifyUrl"] as string;
+    var shareQrBase64 = TempData["ShareQrBase64"] as string;
+    var finalLevelByVerificationRecordId = ViewBag.FinalLevelByVerificationRecordId as IReadOnlyDictionary<Guid, int?> ?? new Dictionary<Guid, int?>();
 
-<h1>My Skills Passport</h1>
+    static string CredentialStatusPillClass(CredentialStatus status) => status switch
+    {
+        CredentialStatus.Active => "status-pill status-pill-success",
+        CredentialStatus.Expired => "status-pill status-pill-warning",
+        _ => "status-pill status-pill-danger",
+    };
+}
 
 @if (Model.Passport is null)
 {
-    <p>You don't have any verified credentials yet. Once an assessor verifies a competency, it will appear here.</p>
+    <div class="hero-wrap hero-wrap-tight">
+        <div class="hero-blob hero-blob-1"></div>
+        <div class="hero-blob hero-blob-2"></div>
+        <div class="hero hero-compact">
+            <span class="hero-eyebrow hero-eyebrow-blue">Skills Passport</span>
+            <h1>My Skills Passport</h1>
+            <p class="lead lead-full mb-0">Your verified competencies, in one place you control who sees.</p>
+        </div>
+    </div>
+    <section class="brand-section brand-section-tight">
+        <div class="brand-card text-center">
+            <p class="mb-0 text-muted">You don't have any verified credentials yet. Once an Assessor verifies a competency, it will appear here.</p>
+        </div>
+    </section>
     return;
 }
 
-<p>Passport number: <strong>@Model.Passport.PassportNumber</strong></p>
-<p><a asp-action="ExportPdf" class="btn btn-outline-secondary btn-sm">Export as PDF</a></p>
-
-@if (!string.IsNullOrEmpty(shareToken))
-{
-    var verifyUrl = Url.Action("Show", "PassportVerification", new { token = shareToken }, Context.Request.Scheme);
-    <div class="alert alert-success">
-        <strong>Share link created.</strong> This is the only time the full link is shown - save it now.<br />
-        <code>@verifyUrl</code><br />
-        <img src="@Url.Action("ShareQrCode", "Passport", new { shareId, token = shareToken })" alt="QR code for this share" width="160" height="160" />
-    </div>
-}
-
-@if (TempData["Error"] is string error)
-{
-    <div class="alert alert-danger">@error</div>
-}
-
-<h2 class="h5">Verified</h2>
-@if (Model.VerifiedCredentials.Count == 0)
-{
-    <p class="text-muted">No verified credentials yet.</p>
-}
-else
-{
-    <ul>
-        @foreach (var (credential, competencyName) in Model.VerifiedCredentials)
-        {
-            <li>
-                <strong>@competencyName</strong> - <code>@credential.CredentialIdentifier</code>
- - issued @credential.IssuedAtUtc.ToString("yyyy-MM-dd")
-                @(credential.ValidUntilUtc is not null ? $"(valid until {credential.ValidUntilUtc:yyyy-MM-dd})" : "")
- - @credential.CredentialStatus
-            </li>
-        }
-    </ul>
-}
-
-<h2 class="h5">Not yet verified</h2>
-@if (Model.UnverifiedCompetencies.Count == 0)
-{
-    <p class="text-muted">Nothing in progress.</p>
-}
-else
-{
-    <ul>
-        @foreach (var (cc, competencyName) in Model.UnverifiedCompetencies)
-        {
-            <li>@competencyName - <em>@cc.Status</em> (not verified)</li>
-        }
-    </ul>
-}
-
-<h2 class="h5">Share a credential</h2>
-@if (Model.VerifiedCredentials.Count == 0)
-{
-    <p class="text-muted">Get a credential verified before creating a share link.</p>
-}
-else
-{
-    <form asp-action="CreateShare" method="post">
-        @foreach (var (credential, competencyName) in Model.VerifiedCredentials)
-        {
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="SelectedCredentialIdentifiers" value="@credential.CredentialIdentifier" id="cred-@credential.Id" />
-                <label class="form-check-label" for="cred-@credential.Id">@competencyName (@credential.CredentialIdentifier)</label>
-            </div>
-        }
-        <div class="mb-3 mt-2">
-            <label class="form-label">Expires in (days, optional)</label>
-            <input type="number" min="1" name="ExpiresInDays" class="form-control max-w-xs" />
+<div class="hero-wrap hero-wrap-tight">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow hero-eyebrow-blue">Skills Passport</span>
+        <h1>My Skills Passport</h1>
+        <p class="lead lead-full">Your verified competencies, in one place you control who sees.</p>
+        <p class="mb-0">
+            <strong>@Model.Passport.PassportNumber</strong> &middot;
+            @Model.VerifiedCredentials.Count verified credential@(Model.VerifiedCredentials.Count == 1 ? "" : "s")
+        </p>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <a asp-action="ExportPdf" class="btn-brand-outline btn-sm">Export as PDF</a>
         </div>
-        <button type="submit" class="btn btn-primary">Create share link</button>
-    </form>
-}
+    </div>
+</div>
 
-<h2 class="h5">Active share links</h2>
-@if (Model.ActiveShares.Count == 0)
-{
-    <p class="text-muted">None.</p>
-}
-else
-{
-    <ul>
-        @foreach (var share in Model.ActiveShares)
-        {
-            <li>
-                Created @share.CreatedAtUtc.ToString("yyyy-MM-dd") - exposes @share.VisibleFields.Count credential(s)
-                @(share.ExpiresAtUtc is not null ? $" - expires {share.ExpiresAtUtc:yyyy-MM-dd}" : "")
-                <form asp-action="RevokeShare" asp-route-shareId="@share.Id" method="post" class="d-inline">
-                    <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
-                </form>
-            </li>
-        }
-    </ul>
-}
+<section class="brand-section brand-section-tight">
+    @if (!string.IsNullOrEmpty(shareVerifyUrl))
+    {
+        <div class="brand-card mb-3">
+            <div class="row g-4 align-items-center">
+                <div class="col-md-8">
+                    <h2 class="h5 mb-1">Share link created</h2>
+                    <p class="text-muted small mb-3">This is the only time the full link is shown - save it now. Anyone with this link or QR code can view the credentials you selected, with no sign-in required.</p>
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control" id="share-link-input" value="@shareVerifyUrl" readonly />
+                        <button type="button" class="btn btn-outline-secondary" id="copy-share-link-btn" data-copy-target="share-link-input">Copy link</button>
+                    </div>
+                    <a href="@shareVerifyUrl" target="_blank" rel="noopener" class="btn-brand btn-sm">Open shared passport</a>
+                </div>
+                <div class="col-md-4 text-center">
+                    @if (!string.IsNullOrEmpty(shareQrBase64))
+                    {
+                        <img src="data:image/png;base64,@shareQrBase64" alt="Scannable QR code for this share link" width="180" height="180" class="mockup-qr-img" />
+                    }
+                    <span class="d-block text-muted small mt-2">Scan to open the share link</span>
+                </div>
+            </div>
+        </div>
+    }
 
-@if (Model.RevokedOrExpiredShares.Count > 0)
-{
-    <h2 class="h5">Revoked / expired share links</h2>
-    <ul>
-        @foreach (var share in Model.RevokedOrExpiredShares)
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+
+    <div class="row g-4 mb-3">
+        <div class="col-lg-8">
+            <div class="brand-card h-100">
+                <h2 class="h5 mb-3">Verified</h2>
+                @if (Model.VerifiedCredentials.Count == 0)
+                {
+                    <p class="text-muted mb-0">No verified credentials yet.</p>
+                }
+                else
+                {
+                    @foreach (var (credential, competencyName) in Model.VerifiedCredentials)
+                    {
+                        <div class="repo-card-head py-2 border-top">
+                            <div>
+                                <span class="repo-name" style="font-size: 0.95rem;">@competencyName</span>
+                                <div class="repo-meta">
+                                    <span><code>@credential.CredentialIdentifier</code></span>
+                                    <span>Issued @credential.IssuedAtUtc.ToString("yyyy-MM-dd")</span>
+                                    @if (credential.ValidUntilUtc is not null)
+                                    {
+                                        <span>Valid until @credential.ValidUntilUtc.Value.ToString("yyyy-MM-dd")</span>
+                                    }
+                                </div>
+                            </div>
+                            <span class="@CredentialStatusPillClass(credential.CredentialStatus)">@credential.CredentialStatus</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="skill-card skill-card-dark h-100">
+                <div class="skill-card-head">
+                    <div>
+                        <span class="skill-card-title">Skills Passport</span>
+                        <div class="skill-card-id">@Model.Passport.PassportNumber</div>
+                    </div>
+                    @if (Model.VerifiedCredentials.Count > 0)
+                    {
+                        <span class="mockup-badge">✓ Verified</span>
+                    }
+                </div>
+
+                @if (Model.VerifiedCredentials.Count == 0)
+                {
+                    <p class="text-muted small mb-0 mt-3">No verified skills yet.</p>
+                }
+                else
+                {
+                    @foreach (var (credential, competencyName) in Model.VerifiedCredentials)
+                    {
+                        var level = finalLevelByVerificationRecordId.GetValueOrDefault(credential.VerificationRecordId);
+                        <div class="skill-row">
+                            <span class="skill-name"><span class="skill-check">✓</span> @competencyName</span>
+                            <span class="skill-level">Verified @(level is not null ? $"· L{level}" : "")</span>
+                        </div>
+                    }
+                }
+
+                <div class="skill-card-footer">
+                    <div>
+                        <span class="d-block fw-bold">Scan to view your certificate</span>
+                        <span class="text-muted text-sm">All your currently verified credentials</span>
+                    </div>
+                    <img src="@Url.Action("GeneralCertificateQr")" width="64" height="64" alt="Scannable QR code showing all your currently verified credentials" class="mockup-qr-img" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="brand-card mb-3">
+        <h2 class="h5 mb-3">Not yet verified</h2>
+        @if (Model.UnverifiedCompetencies.Count == 0)
         {
-            <li>Created @share.CreatedAtUtc.ToString("yyyy-MM-dd") - @(share.IsRevoked ? "revoked" : "expired")</li>
+            <p class="text-muted mb-0">Nothing in progress.</p>
         }
-    </ul>
+        else
+        {
+            @foreach (var (cc, competencyName) in Model.UnverifiedCompetencies)
+            {
+                <div class="repo-card-head py-2 border-top">
+                    <span class="repo-name" style="font-size: 0.95rem;">@competencyName</span>
+                    <span class="status-pill">@cc.Status</span>
+                </div>
+            }
+        }
+    </div>
+
+    <div class="brand-card mb-3">
+        <h2 class="h5 mb-3">Share a credential</h2>
+        @if (Model.VerifiedCredentials.Count == 0)
+        {
+            <p class="text-muted mb-0">Get a credential verified before creating a share link.</p>
+        }
+        else
+        {
+            <form asp-action="CreateShare" method="post">
+                <div class="d-flex flex-column gap-2 mb-3">
+                    @foreach (var (credential, competencyName) in Model.VerifiedCredentials)
+                    {
+                        <label class="form-check d-flex align-items-center gap-2 mb-0" for="cred-@credential.Id">
+                            <input class="form-check-input mt-0" type="checkbox" name="SelectedCredentialIdentifiers" value="@credential.CredentialIdentifier" id="cred-@credential.Id" />
+                            <span>@competencyName <span class="text-muted small">(@credential.CredentialIdentifier)</span></span>
+                        </label>
+                    }
+                </div>
+                <div class="row g-2 align-items-end">
+                    <div class="col-sm-6 col-md-4">
+                        <label class="form-label small text-muted mb-1">Expires in (days, optional)</label>
+                        <input type="number" min="1" name="ExpiresInDays" class="form-control" placeholder="Never" />
+                    </div>
+                    <div class="col-sm-6 col-md-4">
+                        <button type="submit" class="btn-brand w-100">Create share link</button>
+                    </div>
+                </div>
+            </form>
+        }
+    </div>
+
+    <div class="brand-card mb-3">
+        <h2 class="h5 mb-3">Active share links</h2>
+        @if (Model.ActiveShares.Count == 0)
+        {
+            <p class="text-muted mb-0">None.</p>
+        }
+        else
+        {
+            <p class="text-muted small">The full link and QR code are only ever shown once, right at creation. Revoke and create a new one if you've lost it.</p>
+            @foreach (var share in Model.ActiveShares)
+            {
+                <div class="repo-card-head py-2 border-top">
+                    <div>
+                        <span class="repo-name" style="font-size: 0.95rem;">Created @share.CreatedAtUtc.ToString("yyyy-MM-dd")</span>
+                        <div class="repo-meta">
+                            <span>Exposes @share.VisibleFields.Count credential@(share.VisibleFields.Count == 1 ? "" : "s")</span>
+                            <span>@(share.ExpiresAtUtc is not null ? $"Expires {share.ExpiresAtUtc:yyyy-MM-dd}" : "No expiry")</span>
+                        </div>
+                    </div>
+                    <form asp-action="RevokeShare" asp-route-shareId="@share.Id" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+                    </form>
+                </div>
+            }
+        }
+    </div>
+
+    @if (Model.RevokedOrExpiredShares.Count > 0)
+    {
+        <div class="brand-card">
+            <h2 class="h5 mb-3">Revoked / expired share links</h2>
+            @foreach (var share in Model.RevokedOrExpiredShares)
+            {
+                <div class="repo-card-head py-2 border-top">
+                    <span class="repo-name" style="font-size: 0.95rem;">Created @share.CreatedAtUtc.ToString("yyyy-MM-dd")</span>
+                    <span class="status-pill">@(share.IsRevoked ? "Revoked" : "Expired")</span>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/copy-to-clipboard.js" asp-append-version="true"></script>
 }

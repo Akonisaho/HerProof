@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using HerProof.Application.Competencies;
 using HerProof.Application.Opportunities;
+using HerProof.Domain.Assessments;
 using HerProof.Domain.Competencies;
 using HerProof.Domain.Identity;
 using HerProof.Domain.Opportunities;
@@ -124,14 +125,37 @@ public class OpportunitiesController(HerProofDbContext db) : Controller
                 var candidateCompetencies = await db.CandidateCompetencies.AsNoTracking()
                     .Where(cc => cc.CandidateId == candidateProfile.Id && requiredCompetencyIds.Contains(cc.CompetencyId))
                     .ToDictionaryAsync(cc => cc.CompetencyId, cancellationToken);
+                var requiredLevelByCompetencyId = opportunity.RequiredCompetencies
+                    .ToDictionary(rc => rc.CompetencyId, rc => rc.RequiredLevel);
                 var candidateLearningResources = await db.LearningResources.AsNoTracking()
                     .Where(lr => requiredCompetencyIds.Contains(lr.CompetencyId))
                     .ToListAsync(cancellationToken);
                 var learningResources = candidateLearningResources
                     .GroupBy(lr => lr.CompetencyId)
-                    .ToDictionary(g => g.Key, g => g.OrderBy(lr => lr.TargetLevel).ThenBy(lr => lr.Title).First());
+                    .ToDictionary(g => g.Key, g =>
+                    {
+                        var requiredLevel = requiredLevelByCompetencyId.GetValueOrDefault(g.Key, 0);
+                        // Prefer the highest-level resource that still targets at or below what this
+                        // role actually requires (no point sending someone to a level-2 tutorial for a
+                        // level-1 requirement); fall back to the gentlest resource available otherwise.
+                        return g.Where(lr => lr.TargetLevel <= requiredLevel).OrderByDescending(lr => lr.TargetLevel).ThenBy(lr => lr.Title).FirstOrDefault()
+                            ?? g.OrderBy(lr => lr.TargetLevel).ThenBy(lr => lr.Title).First();
+                    });
 
                 gapReport = GapToProofEngine.Generate(opportunity, candidateProfile.Id, candidateCompetencies, competencyNames, learningResources, DateTime.UtcNow);
+                ViewBag.LearningResourcesByCompetencyId = learningResources;
+
+                // So "take a practical assessment" tells the candidate which language/skill it's
+                // actually in, instead of sending her into a generic list with no idea what to expect.
+                var matchingAssessments = await db.AssessmentCompetencies.AsNoTracking()
+                    .Where(ac => requiredCompetencyIds.Contains(ac.CompetencyId))
+                    .Join(db.Assessments.AsNoTracking().Where(a => a.Status == AssessmentStatus.Published),
+                        ac => ac.AssessmentId, a => a.Id,
+                        (ac, a) => new { ac.CompetencyId, a.Id, a.Title, a.AssessmentType, a.DurationMinutes })
+                    .ToListAsync(cancellationToken);
+                ViewBag.AssessmentsByCompetencyId = matchingAssessments
+                    .GroupBy(a => a.CompetencyId)
+                    .ToDictionary(g => g.Key, g => g.Select(a => (a.Id, a.Title, a.AssessmentType, a.DurationMinutes)).ToList());
 
                 // Stored for audit/history (docs/05 P05): every view generates a fresh, timestamped snapshot.
                 db.GapReports.Add(gapReport);
@@ -160,6 +184,18 @@ public class OpportunitiesController(HerProofDbContext db) : Controller
                     .Select(c => (c.CredentialIdentifier, CompetencyName: verificationRecordsByCompetency.TryGetValue(c.VerificationRecordId, out var competencyId)
                         && allCompetencyNames.TryGetValue(competencyId, out var name) ? name : "(unknown)"))
                     .ToList();
+            }
+        }
+
+        if (opportunity.LinkedAssessmentId is Guid linkedAssessmentId)
+        {
+            var linked = await db.Assessments.AsNoTracking()
+                .Where(a => a.Id == linkedAssessmentId && a.Status == AssessmentStatus.Published)
+                .Select(a => new { a.Id, a.Title, a.AssessmentType, a.DurationMinutes })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (linked is not null)
+            {
+                ViewBag.LinkedAssessment = (linked.Id, linked.Title, linked.AssessmentType, linked.DurationMinutes);
             }
         }
 

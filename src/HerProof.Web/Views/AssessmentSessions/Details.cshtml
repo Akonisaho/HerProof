@@ -13,9 +13,14 @@
         starterCode = q.StarterCode,
         questionType = q.QuestionType.ToString(),
     }));
+
+    // Stored and compared in UTC everywhere else (CLAUDE.md), but a candidate reading "13:57" when
+    // her own clock says "15:57" reasonably reads that as wrong - South Africa has one timezone,
+    // SAST (UTC+2), no daylight saving, so this is a fixed offset, not a real timezone conversion.
+    static string ToSast(DateTime utc) => utc.AddHours(2).ToString("d MMM yyyy HH:mm") + " SAST";
 }
 
-<div class="hero-wrap">
+<div class="hero-wrap hero-wrap-tight">
     <div class="hero-blob hero-blob-1"></div>
     <div class="hero-blob hero-blob-2"></div>
     <div class="hero hero-compact">
@@ -25,19 +30,21 @@
     </div>
 </div>
 
-<section class="brand-section">
+<section class="brand-section brand-section-tight">
 
 @if (Model.Status == AssessmentSessionStatus.Invited)
 {
-    <div class="brand-card" style="max-width: 640px;">
+    <div class="brand-card" style="max-width: 640px; margin: 0 auto;">
         <h3>Before you start</h3>
         <p>
             This assessment is monitored in your browser. It only ever records a fixed, published
             list of signals - whether this tab lost focus, your network connection, and whether a
             camera/microphone is plugged in. It <strong>never</strong> captures screen content,
-            keystrokes, clipboard contents, or any camera/microphone recording - those are never
-            turned on. Every signal is a flag for a human assessor to review, never an automatic
-            fail, and you see the same log the assessor sees, live, as it happens.
+            keystrokes, or clipboard contents. Your camera and microphone show a live preview the
+            whole time you're working, as an honest "yes this is on" signal - but nothing is ever
+            recorded, uploaded, or stored; only the content of your submitted code is ever assessed.
+            Every signal is a flag for a human assessor to review, never an automatic fail, and you
+            see the same log the assessor sees, live, as it happens.
         </p>
         <form asp-action="Consent" asp-route-sessionId="@Model.Id" method="post">
             <button type="submit" class="btn-brand">I understand - give consent</button>
@@ -46,7 +53,7 @@
 }
 else if (Model.Status == AssessmentSessionStatus.ConsentGiven)
 {
-    <div class="brand-card" style="max-width: 640px;">
+    <div class="brand-card" style="max-width: 640px; margin: 0 auto;">
         <h3>Consent recorded</h3>
         <p>Starting the timer begins your @assessment.DurationMinutes-minute window - the server
            records the exact start time, and that's what decides your deadline, not your browser.</p>
@@ -75,10 +82,29 @@ else if (Model.Status == AssessmentSessionStatus.InProgress)
             </div>
         </div>
 
-        <div class="brand-card mb-3">
-            <div id="question-tabs" class="d-flex gap-2 flex-wrap mb-3"></div>
-            <div id="question-prompt" class="text-muted mb-2"></div>
-            <div id="editor-container" style="height: 360px; border: 1px solid var(--brand-pink-border); border-radius: var(--brand-radius-sm);"></div>
+        <div class="row g-3 mb-3">
+            <div class="col-lg-9 order-2 order-lg-1">
+                <div class="brand-card">
+                    <div id="question-tabs" class="d-flex gap-2 flex-wrap mb-3"></div>
+                    <div id="question-prompt" class="text-muted mb-2"></div>
+                    <div id="editor-container" style="height: 360px; border: 1px solid var(--brand-pink-border); border-radius: var(--brand-radius-sm);"></div>
+                </div>
+            </div>
+            <div class="col-lg-3 order-1 order-lg-2">
+                <div class="brand-card h-100">
+                    <div class="camera-box mx-auto">
+                        <video id="candidate-camera-assessment" autoplay muted playsinline></video>
+                        <span class="camera-rec-badge d-none" id="camera-rec-badge-assessment">● REC</span>
+                        <div class="camera-sound-meter" aria-hidden="true">
+                            <span class="camera-sound-bar-assessment"></span>
+                        </div>
+                    </div>
+                    <div id="camera-unavailable-assessment" class="text-muted small mt-2 d-none text-center">
+                        Camera/microphone preview isn't available - you can still take the assessment normally.
+                    </div>
+                    <p class="text-muted small text-center mt-2 mb-0">Live preview only - nothing recorded or stored.</p>
+                </div>
+            </div>
         </div>
 
         <div class="brand-card mb-3">
@@ -94,9 +120,9 @@ else if (Model.Status == AssessmentSessionStatus.InProgress)
 }
 else
 {
-    <div class="brand-card" style="max-width: 640px;">
+    <div class="brand-card" style="max-width: 640px; margin: 0 auto;">
         <p class="mb-0">
-            Submitted @Model.SubmittedAtUtc?.ToString("u").
+            Submitted @(Model.SubmittedAtUtc is null ? "" : ToSast(Model.SubmittedAtUtc.Value)).
             @(Model.Status == AssessmentSessionStatus.TimedOut ? "Time ran out before submission - this still counts as a real, evaluated submission, never a fail by default." : "")
             @(Model.Status == AssessmentSessionStatus.Evaluated || Model.Status == AssessmentSessionStatus.Reviewed ? "Automated evaluation complete - awaiting assessor review." : "Awaiting automated evaluation.")
         </p>
@@ -107,13 +133,13 @@ else
     </div>
 }
 
-@if (Model.Status != AssessmentSessionStatus.InProgress)
+@if (Model.Status != AssessmentSessionStatus.InProgress && Model.IntegrityEvents.Count > 0)
 {
     <h2 class="h5 mt-4">Integrity log</h2>
     <ul>
         @foreach (var e in Model.IntegrityEvents.OrderBy(e => e.OccurredAtUtc))
         {
-            <li>@e.OccurredAtUtc.ToString("u") - @e.EventType</li>
+            <li>@ToSast(e.OccurredAtUtc) - @e.EventType</li>
         }
     </ul>
 }
@@ -123,4 +149,5 @@ else
 @if (Model.Status == AssessmentSessionStatus.InProgress)
 {
     <script src="~/js/practical-assessment.js" asp-append-version="true"></script>
+    <script src="~/js/assessment-camera.js" asp-append-version="true"></script>
 }

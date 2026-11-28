@@ -7,7 +7,7 @@ namespace HerProof.Application.AI;
 /// model quirk, not a provider bug, and happens with both real providers used here (Groq, Anthropic).
 /// Every DTO in this codebase expects camelCase/PascalCase, so a model that reverts to snake_case
 /// silently deserializes every affected field to null/default rather than throwing — which is exactly
-/// why "Thandi couldn't generate questions" and "AI analysis could not be parsed" kept recurring even
+/// why "Nolwazi couldn't generate questions" and "AI analysis could not be parsed" kept recurring even
 /// when the provider call itself succeeded. Rewriting only key positions (immediately followed by
 /// '":') rather than the whole JSON text means a string VALUE containing an underscore — a file path,
 /// a snippet of code — is never touched.</summary>

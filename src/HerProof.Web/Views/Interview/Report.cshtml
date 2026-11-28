@@ -1,8 +1,9 @@
 @model HerProof.Domain.Interviews.Interview
 @using HerProof.Domain.Interviews
 @{
-    ViewData["Title"] = "Interview result";
+    ViewData["Title"] = "Interview report";
     var competencyNames = (IReadOnlyDictionary<Guid, string>)ViewBag.CompetencyNames;
+    var candidateName = (string)ViewBag.CandidateName;
 
     static string VerdictBadge(Verdict verdict) => verdict switch
     {
@@ -11,45 +12,156 @@
         Verdict.NotDemonstrated => "badge bg-secondary",
         _ => "badge bg-light text-dark",
     };
+
+    static string VerdictLabel(Verdict verdict) => verdict switch
+    {
+        Verdict.Understood => "Understood",
+        Verdict.Partial => "Partially understood",
+        Verdict.NotDemonstrated => "Not demonstrated",
+        _ => verdict.ToString(),
+    };
+
+    var evaluatedTurns = Model.Questions
+        .OrderBy(q => q.QuestionOrder)
+        .Select(q => (Question: q, Turn: q.Turns.OrderBy(t => t.TurnIndex).LastOrDefault(t => t.Evaluation is not null)))
+        .ToList();
+    var understoodCount = evaluatedTurns.Count(t => t.Turn?.Evaluation?.Verdict == Verdict.Understood);
+    var partialCount = evaluatedTurns.Count(t => t.Turn?.Evaluation?.Verdict == Verdict.Partial);
+    var notDemonstratedCount = evaluatedTurns.Count(t => t.Turn?.Evaluation?.Verdict == Verdict.NotDemonstrated);
+
+    var weakCompetencyNames = evaluatedTurns
+        .Where(t => t.Turn?.Evaluation?.Verdict is Verdict.Partial or Verdict.NotDemonstrated)
+        .Select(t => competencyNames.GetValueOrDefault(t.Question.CompetencyId, "Unknown"))
+        .Distinct()
+        .ToList();
 }
 
-<h1>Interview result</h1>
-<p><a asp-action="ReportPdf" asp-route-interviewId="@Model.Id" class="btn-brand btn-sm">Download report (PDF)</a></p>
-@if (Model.IsDemoData)
-{
-    <div class="alert alert-info">Demo data - this is a pre-generated interview, shown instantly as a
-        fallback for a live demo, not something you just answered.</div>
-}
-<p>Thandi's recommendation for the assessor - code on one side, your answer on the other.</p>
+<section class="brand-section brand-section-tight pb-0">
+    <div class="certificate-card mb-4">
+        <span class="certificate-eyebrow">Interview record</span>
+        <div class="certificate-name">@candidateName</div>
+        <p class="certificate-meta mb-0">
+            Completed an AI-assisted skills interview with @Model.InterviewerPersona
+        </p>
+        <p class="certificate-meta">
+            @Model.Mode mode · @Model.StartedAtUtc.ToString("d MMMM yyyy")
+        </p>
+        <p class="text-muted small mb-0" style="max-width: 32rem; margin: 0 auto;">
+            This is @Model.InterviewerPersona's recommendation only - not a verified credential. A named
+            human Assessor reviews this evidence and makes the final verification decision.
+        </p>
 
-@foreach (var question in Model.Questions.OrderBy(q => q.QuestionOrder))
-{
-    var finalTurn = question.Turns.OrderBy(t => t.TurnIndex).LastOrDefault(t => t.Evaluation is not null);
-    <div class="card mb-3">
-        <div class="card-body">
-            <h2 class="h5">@competencyNames.GetValueOrDefault(question.CompetencyId, "Unknown") - @question.QuestionText</h2>
-            @if (!string.IsNullOrEmpty(question.SnippetFilePath))
-            {
-                <p class="small text-muted"><code>@question.SnippetFilePath</code> lines @question.SnippetLines</p>
-            }
+        <div class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+            <a asp-action="ReportPdf" asp-route-interviewId="@Model.Id" class="btn-brand btn-sm">Download report (PDF)</a>
+        </div>
 
-            @if (finalTurn?.Evaluation is not null)
-            {
-                <span class="@VerdictBadge(finalTurn.Evaluation.Verdict)">@finalTurn.Evaluation.Verdict</span>
-                <div class="row mt-2">
-                    <div class="col-md-6">
-                        <strong>Code</strong>
-                        <pre class="small">@question.SnippetFilePath:@question.SnippetLines</pre>
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Your answer</strong>
-                        <p class="small">@finalTurn.TranscriptConfirmed</p>
-                    </div>
-                </div>
-                <p class="small text-muted">@finalTurn.Evaluation.EvidenceSummary</p>
-            }
+        @if (Model.Status == InterviewStatus.Completed)
+        {
+            <div class="certificate-qr-wrap">
+                <img src="@Url.Action("Qr", "InterviewCertificate", new { interviewId = Model.Id })" alt="Scannable QR code verifying this interview record" width="140" height="140" class="mockup-qr-img" />
+                <span class="text-muted small">Scan to verify this interview record</span>
+            </div>
+        }
+    </div>
+</section>
+
+<section class="brand-section pb-0 pt-0">
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4">
+            <div class="brand-card text-center">
+                <div class="fs-2 fw-bold" style="color: var(--brand-success);">@understoodCount</div>
+                <div class="text-muted small">Understood</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="brand-card text-center">
+                <div class="fs-2 fw-bold text-warning">@partialCount</div>
+                <div class="text-muted small">Partially understood</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="brand-card text-center">
+                <div class="fs-2 fw-bold text-secondary">@notDemonstratedCount</div>
+                <div class="text-muted small">Not demonstrated</div>
+            </div>
         </div>
     </div>
-}
 
-<p class="text-muted">This is Thandi's recommendation only. A named human assessor makes the final verification decision.</p>
+    <div class="brand-card mb-4">
+        <h2 class="h5 mb-2">Feedback &amp; what to do next</h2>
+        @if (weakCompetencyNames.Count == 0 && evaluatedTurns.Count > 0)
+        {
+            <p class="mb-0">
+                You demonstrated solid understanding across every question in this interview - nice work.
+                No retake needed here; a human Assessor will review this evidence next.
+            </p>
+        }
+        else if (weakCompetencyNames.Count > 0)
+        {
+            <p class="mb-2">
+                You weren't able to fully demonstrate: <strong>@string.Join(", ", weakCompetencyNames)</strong>.
+                That's not a fail - it just means there isn't enough evidence yet for an Assessor to verify
+                these. Go practice or review these specific areas, then come back and retake the interview
+                (or submit a repository that shows them) once you're ready.
+            </p>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+                <a asp-controller="AssessmentSessions" asp-action="Browse" class="btn btn-sm btn-outline-primary">Practice with an assessment</a>
+                <a asp-controller="Repositories" asp-action="Index" class="btn btn-sm btn-outline-primary">Submit updated evidence</a>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted mb-0">This interview wasn't completed, so there's no feedback to show yet.</p>
+        }
+    </div>
+</section>
+
+<section class="brand-section pt-0">
+    <h2>Question by question</h2>
+    <div class="d-flex flex-column gap-3">
+        @foreach (var (question, finalTurn) in evaluatedTurns)
+        {
+            <div class="brand-card">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div>
+                        <span class="section-eyebrow">@competencyNames.GetValueOrDefault(question.CompetencyId, "Unknown")</span>
+                        <h3 class="h5 mb-0 mt-1">@question.QuestionText</h3>
+                    </div>
+                    @if (finalTurn?.Evaluation is not null)
+                    {
+                        <span class="@VerdictBadge(finalTurn.Evaluation.Verdict)">@VerdictLabel(finalTurn.Evaluation.Verdict)</span>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(question.SnippetFilePath))
+                {
+                    <p class="small text-muted mb-3"><code>@question.SnippetFilePath</code> lines @question.SnippetLines</p>
+                }
+
+                @if (finalTurn?.Evaluation is not null)
+                {
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="fw-bold small text-uppercase text-muted mb-1">Candidate's answer</div>
+                            <p class="mb-0">@finalTurn.TranscriptConfirmed</p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="fw-bold small text-uppercase text-muted mb-1">Nolwazi's assessment</div>
+                            <p class="mb-0">@finalTurn.Evaluation.EvidenceSummary</p>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted mb-0">Not yet answered.</p>
+                }
+            </div>
+        }
+    </div>
+
+    <p class="text-muted small mt-4">
+        This is Nolwazi's recommendation only, grounded in the candidate's own code and her confirmed transcript.
+        A named human Assessor reviews this evidence and makes the final verification decision - never AI.
+    </p>
+</section>

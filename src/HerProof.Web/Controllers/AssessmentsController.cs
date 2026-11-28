@@ -38,8 +38,11 @@ public class AssessmentsController(HerProofDbContext db) : Controller
             return View(model);
         }
 
-        var assessment = new Assessment(model.Title, model.Description, model.AssessmentType, model.DurationMinutes, GetUserId());
-        if (string.Equals(model.AssessmentType, "C#", StringComparison.OrdinalIgnoreCase))
+        var assessment = new Assessment(model.Title, model.Description, model.AssessmentType, model.DurationMinutes, GetUserId(), model.Language);
+        // Never a hidden side effect of picking "C#" as a label - this only ever runs when the
+        // author explicitly asks for a starting point, so an assessment is otherwise genuinely
+        // blank and entirely the author's own content.
+        if (model.IncludeExampleQuestions)
         {
             CSharpAssessmentQuestionTemplate.ApplyTo(assessment);
         }
@@ -85,6 +88,24 @@ public class AssessmentsController(HerProofDbContext db) : Controller
 
         var mapping = assessment.CoverCompetency(model.CompetencyId, model.Weight);
         db.Add(mapping);
+        await db.SaveChangesAsync(cancellationToken);
+        return RedirectToAction(nameof(Details), new { assessmentId });
+    }
+
+    [HttpPost("{assessmentId:guid}/questions")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddQuestion(Guid assessmentId, AddAssessmentQuestionViewModel model, CancellationToken cancellationToken)
+    {
+        var assessment = await db.Assessments.Include(a => a.Questions)
+            .FirstOrDefaultAsync(a => a.Id == assessmentId && a.CreatedBy == GetUserId(), cancellationToken);
+        if (assessment is null)
+        {
+            return NotFound();
+        }
+
+        var order = assessment.Questions.Count == 0 ? 0 : assessment.Questions.Max(q => q.Order) + 1;
+        var question = assessment.AddQuestion(order, model.Title, model.Prompt, model.StarterCode, model.FileName, model.QuestionType, model.HiddenTestCode);
+        db.Add(question);
         await db.SaveChangesAsync(cancellationToken);
         return RedirectToAction(nameof(Details), new { assessmentId });
     }

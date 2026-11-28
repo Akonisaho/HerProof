@@ -3,7 +3,7 @@ using HerProof.Application.Repositories;
 
 namespace HerProof.Application.Interviews;
 
-/// <summary>Prompts for Thandi (docs/06 sections 7-8). Same delimiter-neutralisation defence as
+/// <summary>Prompts for Nolwazi (docs/06 sections 7-8). Same delimiter-neutralisation defence as
 /// RepositoryAnalysisPromptBuilder: repo evidence and the candidate's own (confirmed) transcript are
 /// both untrusted data and get the same treatment.</summary>
 public static class InterviewPromptBuilder
@@ -38,10 +38,11 @@ public static class InterviewPromptBuilder
         IReadOnlyList<string> requiredCompetencyNames)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("Generate 4 to 6 interview questions from this repository evidence.");
-        builder.AppendLine("Cover at least: architecture, data access, error handling, and one free-choice ('pick a method you are proud of').");
-        builder.AppendLine("Include at least one question about a weaker area, phrased constructively.");
+        builder.AppendLine("Generate exactly 2 interview questions from this repository evidence.");
+        builder.AppendLine("Pick the two most substantial, revealing questions you can from the evidence below - prioritise a real architecture/design-decision or data-access question over a generic one.");
+        builder.AppendLine("Each question's \"text\" must be ONE short spoken sentence, 20 words or fewer, asking exactly one thing - never two questions joined with \"and\". This gets read aloud by text-to-speech, so brevity matters.");
         builder.AppendLine($"Required competencies for this opportunity: {string.Join(", ", requiredCompetencyNames)}.");
+        builder.AppendLine("IMPORTANT: competencyName is NOT the question's topic or angle (never \"Architecture\", \"Free-choice\", \"Design\", etc.) — it must be copied VERBATIM from the \"Required competencies\" list above, choosing whichever one that question's evidence is actually tagged with in the data below. A question can still be about architecture or be a free-choice pick; its competencyName field must still be a real competency from that list, exactly as spelled there.");
         builder.AppendLine("Every question must cite a real file path and line range from the evidence below in its snippetFilePath/snippetLines fields — never invent one.");
         builder.AppendLine();
         builder.AppendLine("Respond with ONLY a JSON object matching exactly this shape (same field names, same casing, every field present on every question):");
@@ -76,7 +77,7 @@ public static class InterviewPromptBuilder
         var builder = new StringBuilder();
         builder.AppendLine($"Question: {Neutralize(questionText)}");
         builder.AppendLine($"Snippet: {snippetFilePath}:{snippetLines}");
-        builder.AppendLine($"Probes so far: {probeCount} (maximum 3; if at 3, nextAction must be move_on or finish_question, never probe).");
+        builder.AppendLine("Follow-up questions are disabled - nextAction must always be move_on or finish_question, never probe or clarify, regardless of how complete her answer is.");
         builder.AppendLine();
         builder.AppendLine("Respond with ONLY a JSON object matching exactly this shape (same field names, same casing, every field present):");
         builder.AppendLine("""

@@ -120,7 +120,45 @@ We want pilots with GirlCode-style programmes and one bursary provider. HerProof
 
 Do not claim "nobody does any of this." Say: "We found nobody joining all of it for women."
 
-## 7. Judge Q&A
+## 7. Business model & metrics (slide 11)
+
+**Who pays, and for what:**
+
+| Customer | Pays for | Why they'd pay |
+|---|---|---|
+| Employers | Access to a pool of candidates with Assessor-verified, repo-grounded evidence - skip resume screening for roles where the Skills Passport already covers the required competencies | Faster, cheaper shortlisting; lower mis-hire risk since the evidence (not just a CV claim) is checkable |
+| Bursary / funding partners | Sourcing applicants whose eligibility and demonstrated competencies are both verifiable before they disburse a cent | Lower fraud/drop-off risk than CV- or interview-only screening |
+| Training institutions / programmes (future) | Licensing the roadmap + practical-assessment pipeline as a graduation-readiness check for their own learners | A credential their graduates can carry into any employer, not just a certificate of attendance |
+| Candidates | Nothing, ever | The core differentiator: verification is a cost borne by whoever benefits from trusting it, never by the woman proving her skill |
+
+**Illustrative unit economics** (projected, not yet real revenue - mark clearly as such if asked):
+- [ ] Price point per employer seat or per verified hire, if you have one in mind.
+- [ ] Price point per bursary partner per funding cycle.
+- [ ] Rough cost to actually deliver one verification (Assessor time + AI inference + sandbox compute) -
+      this is the number that proves the unit economics work, and right now it's a real, computable
+      number from what's already built (one Assessor review + a handful of Groq calls + one sandboxed
+      build/test run), not a guess.
+
+**Market sizing** (fill in with sourced numbers before presenting - see section 8 checklist):
+- [ ] South African youth/women unemployment figure, to size the addressable candidate pool.
+- [ ] Number of registered employers/recruiters and active bursary/funding programmes in South Africa
+      as a rough addressable customer count.
+- [ ] Any existing partner conversations or letters of intent you actually have - real traction beats a
+      projected TAM every time.
+
+**What we can honestly claim today (built, not projected):** a real, working, end-to-end evidence
+pipeline - repository analysis, voice/text interview, sandboxed practical assessment in two real
+languages, human Assessor review, portable Skills Passport, employer/bursary-partner dashboards with
+real outreach and response tracking. That is the thing being sold; the revenue model monetises access
+to its output, not the software itself.
+
+**Growth thesis:** start in software development (where "prove it, don't just claim it" is cheapest to
+build and most legible to employers), then extend the same Requirement -> Gap -> Proof -> Verify ->
+Passport pipeline to Beyond Employment categories (caregiving, household and community work mapped to
+real competencies) and additional technical tracks (the sandbox architecture already supports adding a
+language without rebuilding the verification model - see `ISandboxRunner` in the architecture doc).
+
+## 8. Judge Q&A
 
 **"HackerEarth already does AI interviews."** They screen for employers from question banks. Our interviewer questions
 the candidate about her own repository, the result goes to a human assessor, and the output is a credential she owns
@@ -146,16 +184,25 @@ needs a lawful basis, so provider region and terms matter.
 
 **"Who pays?"** Employers, bursary funders, and training institutions. Candidates never pay to be recognised.
 
+**"How do you vet an employer or bursary partner before they're on the platform?"** They reach out through
+our "Partner with us" form (live). We receive it, send them the contact details and documents we need, and
+run due diligence - a scam and security check - before we ever onboard them. That gate exists specifically
+so a candidate never ends up dealing with a fake employer. Honest limit: the due-diligence *decision* step
+in the admin tooling isn't built yet - today it's a real intake form plus a manual process, not yet a
+one-click "mark verified" in the product.
+
 **"What did you actually build in the hackathon?"** Be exact. Say which parts are live and which are stubbed.
 Judges forgive stubs. They do not forgive faking.
 
 **"Why not just use a certificate?"** Certificates record attendance or exam results. A passport records
 demonstrated competencies, with method, rubric, assessor and evidence, and expires when it should.
 
-## 8. Facts to verify before presenting (do not invent)
+## 9. Facts to verify before presenting (do not invent)
 
 - [ ] One youth or women unemployment figure for South Africa, with source and year.
 - [ ] One women-in-tech representation figure, with source and year.
 - [ ] Competitor features listed in section 6.
 - [ ] Every bursary shown in the demo: provider page, eligibility, deadline.
 - [ ] Meaning and spelling of the interviewer's name.
+- [ ] Every unfilled number/checkbox in section 7 (Business model & metrics) - never say a projected
+      number out loud as if it were actual revenue or actual customer traction.

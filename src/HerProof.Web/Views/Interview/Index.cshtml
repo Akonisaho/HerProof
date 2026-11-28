@@ -6,17 +6,17 @@
     var opportunityTitles = (IReadOnlyDictionary<Guid, string>)ViewBag.OpportunityTitles;
 }
 
-<div class="hero-wrap">
+<div class="hero-wrap hero-wrap-tight">
     <div class="hero-blob hero-blob-1"></div>
     <div class="hero-blob hero-blob-2"></div>
     <div class="hero hero-compact">
-        <span class="hero-eyebrow">Thandi</span>
+        <span class="hero-eyebrow">Nolwazi</span>
         <h1>My interviews</h1>
         <p class="lead lead-full mb-0">Every voice/text interview you've taken, grounded in your own code.</p>
     </div>
 </div>
 
-<section class="brand-section">
+<section class="brand-section brand-section-tight">
     @if (Model.Count == 0)
     {
         <div class="brand-card">
@@ -29,14 +29,27 @@
             @foreach (var interview in Model)
             {
                 var isComplete = interview.Status == InterviewStatus.Completed;
+                var isInProgress = interview.Status == InterviewStatus.InProgress;
                 <div class="opportunity-card brand-card d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <a asp-action="@(isComplete ? nameof(InterviewController.Report) : nameof(InterviewController.Take))" asp-route-interviewId="@interview.Id" class="flex-grow-1 text-decoration-none">
-                        <strong>@(interview.OpportunityId is Guid oppId ? opportunityTitles.GetValueOrDefault(oppId, "(opportunity)") : "General skills interview")</strong>
-                        <span class="opportunity-org d-block">
-                            @interview.Mode · Started @interview.StartedAtUtc.ToString("yyyy-MM-dd")
-                            @(interview.IsDemoData ? " · Demo data" : "")
-                        </span>
-                    </a>
+                    @if (isComplete)
+                    {
+                        <a asp-action="@nameof(InterviewController.Report)" asp-route-interviewId="@interview.Id" class="flex-grow-1 text-decoration-none">
+                            <strong>@(interview.OpportunityId is Guid oppId ? opportunityTitles.GetValueOrDefault(oppId, "(opportunity)") : "General skills interview")</strong>
+                            <span class="opportunity-org d-block">
+                                @interview.Mode · Started @interview.StartedAtUtc.ToString("yyyy-MM-dd")
+                            </span>
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="flex-grow-1">
+                            <strong>@(interview.OpportunityId is Guid oppId2 ? opportunityTitles.GetValueOrDefault(oppId2, "(opportunity)") : "General skills interview")</strong>
+                            <span class="opportunity-org d-block">
+                                @interview.Mode · Started @interview.StartedAtUtc.ToString("yyyy-MM-dd")
+                                @(isInProgress ? " · Left before finishing - start a new interview to try again" : "")
+                            </span>
+                        </div>
+                    }
                     <div class="d-flex align-items-center gap-2">
                         <span class="device-pill @(isComplete ? "detected" : "")">@interview.Status</span>
                         @if (isComplete)

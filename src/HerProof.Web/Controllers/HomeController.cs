@@ -20,11 +20,30 @@ public class HomeController : Controller
         this.db = db;
     }
 
-    /// <summary>Logged-out visitors (and every non-Candidate role, for now) see the marketing page
-    /// unchanged. A signed-in Candidate sees her own dashboard instead — real data only, honest empty
-    /// states where she has none yet, never a fabricated "demo" look standing in for her own account.</summary>
+    /// <summary>Logged-out visitors see the marketing page unchanged. Every signed-in role instead
+    /// lands on its own dashboard the moment it clicks "Home" — an Assessor on her inbox, a Recruiter
+    /// or Partner on their organisation's opportunities, a Candidate on her own dashboard — so "Home"
+    /// never feels like the outside, logged-out page once you're actually signed in.</summary>
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        if (User.IsInRole(nameof(UserRole.Assessor)))
+        {
+            return RedirectToAction("Index", "AssessorDashboard");
+        }
+
+        if (User.IsInRole(nameof(UserRole.Recruiter)) || User.IsInRole(nameof(UserRole.Partner)))
+        {
+            var memberUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var organisationId = await db.OrganisationMembers.AsNoTracking()
+                .Where(m => m.UserId == memberUserId)
+                .Select(m => (Guid?)m.OrganisationId)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (organisationId is not null)
+            {
+                return RedirectToAction("Index", "OrganisationDashboard", new { organisationId });
+            }
+        }
+
         if (!User.IsInRole(nameof(UserRole.Candidate)))
         {
             return View();

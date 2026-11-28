@@ -1,0 +1,151 @@
+@model IReadOnlyList<HerProof.Web.Models.Identity.OrganisationCandidateListItem>
+@using HerProof.Domain.Identity
+@{
+    ViewData["Title"] = "Browse candidates";
+
+    static string OutreachLabel(OutreachType type) => type switch
+    {
+        OutreachType.JobOffer => "Job offer sent",
+        _ => "Culture-fit interview invite sent",
+    };
+
+    static string ResponseLabel(OutreachType type, OutreachResponseStatus status) => status switch
+    {
+        OutreachResponseStatus.Pending => "awaiting her response",
+        OutreachResponseStatus.Accepted => type == OutreachType.JobOffer ? "she accepted" : "she'll attend",
+        _ => type == OutreachType.JobOffer ? "she declined" : "she can't make it",
+    };
+
+    static string ResponsePillClass(OutreachResponseStatus status) => status switch
+    {
+        OutreachResponseStatus.Accepted => "status-pill-success",
+        OutreachResponseStatus.Declined => "status-pill-danger",
+        _ => "",
+    };
+}
+
+@if (TempData["CandidatesError"] is string candidatesError)
+{
+    <div class="alert alert-danger">@candidatesError</div>
+}
+
+<div class="hero-wrap hero-wrap-tight">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero hero-compact">
+        <span class="hero-eyebrow">Candidates</span>
+        <h1>Browse verified candidates</h1>
+        <p class="lead lead-full mb-0">
+            Every candidate here has at least one Assessor-verified competency - independent of any
+            opportunity. Only verified skills, project activity and what she chose to share are shown
+            here, never her repositories, recordings, transcripts or contact details.
+        </p>
+    </div>
+</div>
+
+<section class="brand-section brand-section-tight">
+    @if (Model.Count == 0)
+    {
+        <div class="brand-card">
+            <p class="mb-0 text-muted">No candidates have a verified competency yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var candidate in Model)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <div class="brand-card h-100 d-flex flex-column">
+                        <strong>@candidate.FullName</strong>
+                        <span class="opportunity-org d-block mb-2">
+                            @(candidate.Province ?? "Location not shared") &middot; @(candidate.EducationLevel ?? "Education not shared")
+                        </span>
+
+                        @if (!string.IsNullOrEmpty(candidate.CareerInterests))
+                        {
+                            <p class="small text-muted mb-2">@candidate.CareerInterests</p>
+                        }
+
+                        <div class="mb-2">
+                            <span class="text-muted small d-block mb-1">Verified competencies</span>
+                            @foreach (var (competencyName, level) in candidate.VerifiedCompetencies)
+                            {
+                                <span class="status-pill status-pill-success me-1 mb-1 d-inline-block">@competencyName@(level is not null ? $" · L{level}" : "")</span>
+                            }
+                        </div>
+
+                        @if (candidate.PreferredCompetencyNames.Count > 0)
+                        {
+                            <div class="mb-2">
+                                <span class="text-muted small d-block mb-1">Looking to be tested on</span>
+                                @foreach (var name in candidate.PreferredCompetencyNames)
+                                {
+                                    <span class="status-pill me-1 mb-1 d-inline-block">@name</span>
+                                }
+                            </div>
+                        }
+
+                        <span class="text-muted small mb-2">@candidate.RepositoryCount submitted repositor@(candidate.RepositoryCount == 1 ? "y" : "ies")</span>
+
+                        @if (candidate.OutreachSent.Count > 0)
+                        {
+                            <div class="mb-2">
+                                @foreach (var (type, sentAtUtc, responseStatus) in candidate.OutreachSent)
+                                {
+                                    <span class="status-pill status-pill-success me-1 mb-1 d-inline-block">@OutreachLabel(type) &middot; @sentAtUtc.ToString("d MMM yyyy")</span>
+                                    <span class="status-pill @ResponsePillClass(responseStatus) me-1 mb-1 d-inline-block">@ResponseLabel(type, responseStatus)</span>
+                                }
+                            </div>
+                        }
+
+                        <div class="d-flex flex-wrap gap-2 mt-auto">
+                            @if (!string.IsNullOrEmpty(candidate.GitHubProfile))
+                            {
+                                <a href="@candidate.GitHubProfile" target="_blank" rel="noopener" class="btn-brand-outline btn-sm">GitHub</a>
+                            }
+                            @if (!string.IsNullOrEmpty(candidate.LinkedInProfile))
+                            {
+                                <a href="@candidate.LinkedInProfile" target="_blank" rel="noopener" class="btn-brand-outline btn-sm">LinkedIn</a>
+                            }
+                            <button type="button" class="btn-brand btn-sm ms-auto" data-bs-toggle="modal" data-bs-target="#reach-out-@candidate.CandidateId">
+                                Reach out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="reach-out-@candidate.CandidateId" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <form asp-action="ReachOut" asp-route-candidateId="@candidate.CandidateId" method="post">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Reach out to @candidate.FullName</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">What is this?</label>
+                                        <select name="OutreachType" class="form-select">
+                                            <option value="@OutreachType.CultureFitInterview">Invite to a culture-fit interview</option>
+                                            <option value="@OutreachType.JobOffer">Offer the job</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-0">
+                                        <label class="form-label">Your message</label>
+                                        <textarea name="Message" class="form-control" rows="5" required
+                                                  placeholder="e.g. We'd love to meet you for a 30-minute culture-fit chat next week - does Tuesday or Wednesday afternoon work? Or: We'd like to offer you the Junior C# Developer role at R25,000/month, starting 1 Feb - let us know if you'd like to discuss."></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn-brand">Send</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</section>

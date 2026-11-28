@@ -11,14 +11,14 @@ namespace HerProof.AI;
 /// (docs/01 section 15 / docs/06 section 10: cached/demo result when the provider is unavailable),
 /// deterministic from the same untrusted content every real analyzer gets, so prompt-injection and
 /// verification logic are exercised identically whether or not a real LLM key exists. Handles both
-/// shapes this codebase asks an LLM for: repository analysis (P08) and Thandi interview turns (P10).</summary>
+/// shapes this codebase asks an LLM for: repository analysis (P08) and Nolwazi interview turns (P10).</summary>
 public partial class FakeAiService : IAIService
 {
     public Task<AiCompletion> CompleteJsonAsync(string systemPrompt, string untrustedUserContent, string promptVersion, CancellationToken cancellationToken = default)
     {
         var json = systemPrompt.Contains("repository analysis agent", StringComparison.Ordinal)
             ? BuildRepositoryAnalysisResponse(untrustedUserContent)
-            : untrustedUserContent.Contains("Generate 4 to 6 interview questions", StringComparison.Ordinal)
+            : untrustedUserContent.Contains("Generate exactly 2 interview questions", StringComparison.Ordinal)
                 ? BuildQuestionGenerationResponse(untrustedUserContent)
                 : BuildTurnEvaluationResponse();
 
@@ -65,7 +65,7 @@ public partial class FakeAiService : IAIService
 
         foreach (Match match in evidenceLines)
         {
-            if (questions.Count >= 4)
+            if (questions.Count >= 2)
             {
                 break;
             }

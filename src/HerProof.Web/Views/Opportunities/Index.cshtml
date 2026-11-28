@@ -14,19 +14,19 @@
 
         if (min is not null && (max is null || max == min))
         {
-            return $"${min:N0}";
+            return $"R{min:N0}";
         }
 
         if (min is null && max is not null)
         {
-            return $"Up to ${max:N0}";
+            return $"Up to R{max:N0}";
         }
 
-        return $"${min:N0} – ${max:N0}";
+        return $"R{min:N0} – R{max:N0}";
     }
 }
 
-<div class="hero-wrap">
+<div class="hero-wrap hero-wrap-tight">
     <div class="hero-blob hero-blob-1"></div>
     <div class="hero-blob hero-blob-2"></div>
     <div class="hero hero-compact">
@@ -39,7 +39,7 @@
     </div>
 </div>
 
-<section class="brand-section pb-0">
+<section class="brand-section brand-section-tight pb-0">
     <form method="get" class="brand-card mb-4">
         <div class="row g-2 align-items-end">
             <div class="col-md-4">
@@ -65,8 +65,8 @@
                 <input type="number" name="MaxExperienceYears" value="@search.MaxExperienceYears" min="0" max="60" class="form-control" />
             </div>
             <div class="col-md-2 d-flex gap-2">
-                <button type="submit" class="btn-brand flex-grow-1">Search</button>
-                <a asp-action="Index" class="btn btn-outline-secondary" title="Clear filters">✕</a>
+                <button type="submit" class="btn-brand btn-form-inline flex-grow-1">Search</button>
+                <a asp-action="Index" class="btn btn-outline-secondary btn-form-inline" title="Clear filters">✕</a>
             </div>
         </div>
         <div class="form-check mt-2">
@@ -76,7 +76,7 @@
     </form>
 </section>
 
-<section class="brand-section pt-0">
+<section class="brand-section brand-section-tight pt-0">
     @if (Model.Count == 0)
     {
         <div class="brand-card text-center">
@@ -94,6 +94,7 @@
                 {
                     OpportunityType.Bursary => "opportunity-pill opportunity-pill-bursary",
                     OpportunityType.Internship => "opportunity-pill opportunity-pill-internship",
+                    OpportunityType.Hackathon => "opportunity-pill opportunity-pill-hackathon",
                     _ => "opportunity-pill opportunity-pill-job",
                 };
 

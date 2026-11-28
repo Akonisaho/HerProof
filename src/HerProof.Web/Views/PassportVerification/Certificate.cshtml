@@ -1,0 +1,55 @@
+@model HerProof.Web.Models.Passports.PublicPassportViewModel
+@{
+    ViewData["Title"] = "Skills certificate";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - HerProof</title>
+    <link rel="stylesheet" href="~/css/verify.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="verify-card verify-certificate">
+        <div class="verify-header">
+            <span class="verify-wordmark">Her<span>Proof</span></span>
+            <p class="verify-note">
+                This page always shows this candidate's currently Assessor-verified competencies,
+                live. No recordings, transcripts, source repositories, contact details, integrity
+                events or scores are ever shown here.
+            </p>
+        </div>
+        <div class="verify-body text-center">
+            <p class="verify-section-label mb-1">Skills certificate</p>
+            <h2 class="mb-1">@Model.CandidateName</h2>
+            <p class="verify-passport-number mb-3">Passport number: @Model.PassportNumber</p>
+
+            @if (Model.Credentials.Count == 0)
+            {
+                <p class="text-muted">No verified credentials yet.</p>
+            }
+            else
+            {
+                @foreach (var c in Model.Credentials)
+                {
+                    <div class="verify-credential">
+                        <div class="verify-credential-top">
+                            <span class="verify-credential-name">@c.CompetencyName</span>
+                            <span class="verify-badge">✓ @c.Status</span>
+                        </div>
+                        <p class="verify-credential-meta">
+                            Credential @c.CredentialIdentifier - issued @c.IssuedAtUtc.ToString("yyyy-MM-dd")
+                            @(c.ValidUntilUtc is not null ? $", valid until {c.ValidUntilUtc:yyyy-MM-dd}" : "")
+                        </p>
+                    </div>
+                }
+            }
+        </div>
+        <div class="verify-footer">
+            Verified via HerProof - evidence before verification, always.
+        </div>
+    </div>
+</body>
+</html>

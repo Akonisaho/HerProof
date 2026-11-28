@@ -6,6 +6,7 @@ using HerProof.Web.Models.Passports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace HerProof.Web.Controllers;
 
@@ -14,7 +15,7 @@ namespace HerProof.Web.Controllers;
 /// evidence-pack pattern in P14, because a passport has exactly one owner.</summary>
 [Authorize(Roles = nameof(UserRole.Candidate))]
 [Route("passport")]
-public class PassportController(HerProofDbContext db) : Controller
+public class PassportController(HerProofDbContext db, IConfiguration configuration) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -35,6 +36,11 @@ public class PassportController(HerProofDbContext db) : Controller
             : await db.VerificationRecords.AsNoTracking()
                 .Where(v => v.CandidateId == candidateId)
                 .ToDictionaryAsync(v => v.Id, v => v.CompetencyId, cancellationToken);
+        ViewBag.FinalLevelByVerificationRecordId = passport is null
+            ? new Dictionary<Guid, int?>()
+            : await db.VerificationRecords.AsNoTracking()
+                .Where(v => v.CandidateId == candidateId)
+                .ToDictionaryAsync(v => v.Id, v => v.FinalLevel, cancellationToken);
 
         var verifiedCredentials = passport?.Credentials
             .Select(c => (Credential: c, CompetencyName: verificationRecordsByCompetency.TryGetValue(c.VerificationRecordId, out var competencyId)
@@ -85,8 +91,11 @@ public class PassportController(HerProofDbContext db) : Controller
         db.Add(share);
         await db.SaveChangesAsync(cancellationToken);
 
-        TempData["ShareToken"] = rawToken;
-        TempData["ShareId"] = share.Id.ToString();
+        var verifyUrl = Url.Action(nameof(PassportVerificationController.Show), "PassportVerification", new { token = rawToken }, Request.Scheme)!;
+        var qrPngBytes = QrCodeGenerator.GeneratePng(verifyUrl);
+
+        TempData["ShareVerifyUrl"] = verifyUrl;
+        TempData["ShareQrBase64"] = Convert.ToBase64String(qrPngBytes);
         return RedirectToAction(nameof(Index));
     }
 
@@ -127,6 +136,25 @@ public class PassportController(HerProofDbContext db) : Controller
         return File(QrCodeGenerator.GeneratePng(url), "image/png");
     }
 
+    /// <summary>The always-on "general certificate" QR shown directly on this page - unlike
+    /// ShareQrCode above, this never needs a share to be created first: it's always there, and always
+    /// points at whatever is currently Active (see PassportVerificationController.Certificate).</summary>
+    [HttpGet("certificate-qr.png")]
+    public async Task<IActionResult> GeneralCertificateQr(CancellationToken cancellationToken)
+    {
+        var candidateId = await CurrentCandidateIdAsync(cancellationToken);
+        var passport = await db.SkillsPassports.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.CandidateId == candidateId, cancellationToken);
+        if (passport is null)
+        {
+            return NotFound();
+        }
+
+        var token = PassportCertificateToken.Generate(passport.Id, configuration);
+        var url = Url.Action(nameof(PassportVerificationController.Certificate), "PassportVerification", new { passportId = passport.Id, token }, Request.Scheme)!;
+        return File(QrCodeGenerator.GeneratePng(url), "image/png");
+    }
+
     [HttpGet("export.pdf")]
     public async Task<IActionResult> ExportPdf(CancellationToken cancellationToken)
     {
@@ -155,7 +183,10 @@ public class PassportController(HerProofDbContext db) : Controller
             c.ValidUntilUtc,
             Status: c.CredentialStatus.ToString())).ToList();
 
-        var pdfBytes = PassportPdfExporter.Export(user.FullName, passport.PassportNumber, rows);
+        var token = PassportCertificateToken.Generate(passport.Id, configuration);
+        var verifyUrl = Url.Action(nameof(PassportVerificationController.Certificate), "PassportVerification", new { passportId = passport.Id, token }, Request.Scheme);
+
+        var pdfBytes = PassportPdfExporter.Export(user.FullName, passport.PassportNumber, rows, verifyUrl);
         return File(pdfBytes, "application/pdf", $"{passport.PassportNumber}-passport.pdf");
     }
 

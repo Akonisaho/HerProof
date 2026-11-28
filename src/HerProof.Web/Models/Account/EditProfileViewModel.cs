@@ -20,4 +20,7 @@ public class EditProfileViewModel
     [DataType(DataType.Date)]
     [Display(Name = "Date of birth")]
     public DateOnly? DateOfBirth { get; set; }
+
+    [Display(Name = "Languages/competencies I want to be tested on")]
+    public List<Guid> PreferredCompetencyIds { get; set; } = [];
 }

@@ -81,7 +81,7 @@ public class RepositoryAnalysisBackgroundService(IServiceScopeFactory scopeFacto
             }
 
             var sandboxRunner = scope.ServiceProvider.GetRequiredService<ISandboxRunner>();
-            var sandboxResult = await SandboxWorkspace.WithMaterializedContentAsync(content, path => sandboxRunner.RunAsync(path, cancellationToken));
+            var sandboxResult = await SandboxWorkspace.WithMaterializedContentAsync(content, path => sandboxRunner.RunAsync(path, cancellationToken: cancellationToken));
             // STUB(HP-017): the sandbox entrypoint reports only a pass/fail boolean, not per-test
             // counts (that would need parsing the .trx inside the container). 1/0 here is a stand-in
             // signal, not a real count — docs/02's schema only models counts, not a tri-state "ran".
