@@ -22,7 +22,7 @@ public record RecordBrowserEventRequest(string EventType);
 [Authorize(Roles = nameof(UserRole.Candidate))]
 [Route("assessment-sessions")]
 [TypeFilter(typeof(RequireCompleteCandidateProfileFilter))]
-public class AssessmentSessionsController(HerProofDbContext db, ISessionEventTokenService tokenService) : Controller
+public class AssessmentSessionsController(HerProofDbContext db, ISessionEventTokenService tokenService, IConfiguration configuration) : Controller
 {
     [HttpGet("browse")]
     public async Task<IActionResult> Browse(CancellationToken cancellationToken)
@@ -37,6 +37,15 @@ public class AssessmentSessionsController(HerProofDbContext db, ISessionEventTok
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Start(Guid assessmentId, CancellationToken cancellationToken)
     {
+        // This hosted preview has no Docker sandbox available (STUB(HP-038)), so a started session
+        // would sit "InProgress" forever with no worker ever able to grade it - an honest refusal
+        // here beats a submission that silently never completes.
+        if (!configuration.GetValue("Execution:Enabled", true))
+        {
+            TempData["AssessmentsError"] = "Live practical assessments need a sandbox that only runs in our local demo environment - this hosted preview is read-only for that part. Everything else here (gap reports, Evidence Packs, Skills Passports) is real.";
+            return RedirectToAction(nameof(Browse));
+        }
+
         var candidateId = await GetCandidateProfileIdAsync(cancellationToken);
         var assessment = await db.Assessments.AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == assessmentId && a.Status == AssessmentStatus.Published, cancellationToken);

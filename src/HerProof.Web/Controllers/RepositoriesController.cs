@@ -21,7 +21,7 @@ namespace HerProof.Web.Controllers;
 [Route("repositories")]
 [EnableRateLimiting("upload")]
 [TypeFilter(typeof(RequireCompleteCandidateProfileFilter))]
-public class RepositoriesController(HerProofDbContext db, IGitHubClient gitHubClient) : Controller
+public class RepositoriesController(HerProofDbContext db, IGitHubClient gitHubClient, IConfiguration configuration) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -91,6 +91,15 @@ public class RepositoriesController(HerProofDbContext db, IGitHubClient gitHubCl
     {
         if (!ModelState.IsValid)
         {
+            return View(model);
+        }
+
+        // Analysis genuinely runs code in a Docker sandbox (STUB(HP-038)) - a hosted preview with no
+        // Docker daemon would queue this and never process it, leaving her repository stuck "Pending"
+        // forever with no explanation. Refuse honestly up front instead.
+        if (!configuration.GetValue("Execution:Enabled", true))
+        {
+            ModelState.AddModelError(string.Empty, "Repository analysis needs a sandbox that only runs in our local demo environment - this hosted preview is read-only for that part. Everything else here (gap reports, Evidence Packs, Skills Passports) is real.");
             return View(model);
         }
 

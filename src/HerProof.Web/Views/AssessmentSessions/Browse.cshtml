@@ -4,6 +4,10 @@
 }
 
 <h1>Practical assessments</h1>
+@if (TempData["AssessmentsError"] is string assessmentsError)
+{
+    <div class="alert alert-danger">@assessmentsError</div>
+}
 <ul class="list-group">
     @foreach (var a in Model)
     {

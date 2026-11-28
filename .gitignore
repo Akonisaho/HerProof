@@ -23,3 +23,9 @@ Thumbs.db
 .web-run.log
 .worker-run.log
 docker/sandbox-test-template.csproj
+.neon
+.env
+.neon-conn-string.local
+neon.ts
+package.json
+package-lock.json
